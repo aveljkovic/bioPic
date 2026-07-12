@@ -28,6 +28,20 @@ biopic_add_test(test_image_decoder unit/test_image_decoder.cpp)
 biopic_add_test(test_golden_vectors golden/test_golden_vectors.cpp)
 biopic_add_test(test_determinism golden/test_determinism.cpp)
 biopic_add_test(test_transformations golden/test_transformations.cpp)
+biopic_add_test(test_classifier unit/test_classifier.cpp)
+biopic_add_test(test_model unit/test_model.cpp)
+biopic_add_test(test_preprocessing unit/test_preprocessing.cpp)
+if(BIOPIC_BUILD_CLI)
+  set(CLI_CLASSIFY_FIXTURE_PNG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/cli_classify.png)
+
+  add_test(NAME test_cli_classify COMMAND $<TARGET_FILE:biopic-cli> classify
+                                          ${CLI_CLASSIFY_FIXTURE_PNG})
+  set_tests_properties(
+    test_cli_classify
+    PROPERTIES
+      PASS_REGULAR_EXPRESSION
+      "Label: safe[\r\n]+Confidence: 0[\r\n]+Detection result: not detected")
+endif()
 biopic_add_test(test_c_abi unit/test_c_abi.cpp)
 if(BIOPIC_BUILD_C_ABI)
   target_link_libraries(test_c_abi PRIVATE biopic_c)

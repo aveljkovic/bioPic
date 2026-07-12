@@ -2,12 +2,13 @@
 
 #include <string>
 
+#include "biopic/ai/classifier.hpp"
 #include "biopic/image.hpp"
 #include "biopic/types.hpp"
 
 namespace biopic {
 
-struct ClassificationResult {
+struct NudityClassificationResult {
     ClassificationScores scores;
     std::string model_id;
     std::string model_version;
@@ -15,11 +16,11 @@ struct ClassificationResult {
 };
 
 // Abstract interface for ONNX-backed nudity classification.
-// No concrete implementation is provided in Milestone 1.
+// Concrete implementations will implement IClassifier in a future milestone.
 class INudityClassifier {
   public:
     virtual ~INudityClassifier() = default;
-    virtual ClassificationResult classify(const ImageView& image) = 0;
+    virtual NudityClassificationResult classify(const ImageView& image) = 0;
 };
 
 } // namespace biopic

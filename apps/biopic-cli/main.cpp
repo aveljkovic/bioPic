@@ -1,3 +1,4 @@
+#include "biopic/ai/classifier.hpp"
 #include "biopic/distance.hpp"
 #include "biopic/fingerprint.hpp"
 #include "biopic/hasher.hpp"
@@ -12,7 +13,8 @@ namespace {
 void print_usage() {
     std::cerr << "Usage:\n"
               << "  biopic hash IMAGE\n"
-              << "  biopic compare IMAGE_A IMAGE_B\n";
+              << "  biopic compare IMAGE_A IMAGE_B\n"
+              << "  biopic classify IMAGE\n";
 }
 
 int hash_image(const std::filesystem::path& path) {
@@ -68,6 +70,24 @@ int compare_images(const std::filesystem::path& left, const std::filesystem::pat
     return 0;
 }
 
+int classify_image(const std::filesystem::path& path) {
+    biopic::ImageDecoder decoder;
+    const auto decoded = decoder.decode_file(path.string());
+    if (!decoded) {
+        std::cerr << "Failed to decode image: " << path << '\n';
+        return 1;
+    }
+
+    biopic::ImageView view(decoded->width, decoded->height, decoded->rgb);
+    biopic::DummyClassifier classifier;
+    const biopic::ClassificationResult result = classifier.classify(view);
+
+    std::cout << "Label: " << result.label << '\n';
+    std::cout << "Confidence: " << result.confidence << '\n';
+    std::cout << "Detection result: " << (result.detected ? "detected" : "not detected") << '\n';
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -82,6 +102,9 @@ int main(int argc, char** argv) {
     }
     if (command == "compare" && argc == 4) {
         return compare_images(argv[2], argv[3]);
+    }
+    if (command == "classify" && argc == 3) {
+        return classify_image(argv[2]);
     }
 
     print_usage();

@@ -32,7 +32,10 @@ target_sources(
           src/hash/biopic_hasher_v1.cpp
           src/hash/fingerprint_codec.cpp
           src/hash/fingerprint.cpp
-          src/hash/distance.cpp)
+          src/hash/distance.cpp
+          src/ai/classifier.cpp
+          src/ai/model.cpp
+          src/ai/preprocessing.cpp)
 
 target_include_directories(
   biopic_core
