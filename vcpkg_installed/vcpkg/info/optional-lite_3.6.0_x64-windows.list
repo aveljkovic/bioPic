@@ -1,0 +1,12 @@
+x64-windows/
+x64-windows/include/
+x64-windows/include/nonstd/
+x64-windows/include/nonstd/optional.hpp
+x64-windows/share/
+x64-windows/share/optional-lite/
+x64-windows/share/optional-lite/copyright
+x64-windows/share/optional-lite/optional-lite-config-version.cmake
+x64-windows/share/optional-lite/optional-lite-config.cmake
+x64-windows/share/optional-lite/optional-lite-targets.cmake
+x64-windows/share/optional-lite/vcpkg.spdx.json
+x64-windows/share/optional-lite/vcpkg_abi_info.txt

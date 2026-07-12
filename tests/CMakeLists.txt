@@ -31,6 +31,10 @@ biopic_add_test(test_transformations golden/test_transformations.cpp)
 biopic_add_test(test_classifier unit/test_classifier.cpp)
 biopic_add_test(test_model unit/test_model.cpp)
 biopic_add_test(test_preprocessing unit/test_preprocessing.cpp)
+biopic_add_test(test_onnx_runtime unit/test_onnx_runtime.cpp)
+target_compile_definitions(
+  test_onnx_runtime
+  PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 if(BIOPIC_BUILD_CLI)
   set(CLI_CLASSIFY_FIXTURE_PNG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/cli_classify.png)
 

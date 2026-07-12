@@ -16,6 +16,8 @@
         "CMAKE_CXX_STANDARD": "20",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
+        "VCPKG_TARGET_TRIPLET": "x64-linux-release",
         "BIOPIC_BUILD_TESTS": "ON",
         "BIOPIC_BUILD_BENCHMARKS": "ON",
         "BIOPIC_BUILD_CLI": "ON"
@@ -29,6 +31,14 @@
       }
     },
     {
+      "name": "macos",
+      "inherits": "default",
+      "binaryDir": "${sourceDir}/build/macos",
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "arm64-osx-release"
+      }
+    },
+    {
       "name": "windows-msvc",
       "inherits": "default",
       "generator": "Visual Studio 17 2022",
@@ -38,7 +48,9 @@
       },
       "binaryDir": "${sourceDir}/build/msvc",
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
+        "VCPKG_TARGET_TRIPLET": "x64-windows-release"
       }
     }
   ],
@@ -50,6 +62,10 @@
     {
       "name": "debug",
       "configurePreset": "debug"
+    },
+    {
+      "name": "macos",
+      "configurePreset": "macos"
     },
     {
       "name": "windows-msvc",

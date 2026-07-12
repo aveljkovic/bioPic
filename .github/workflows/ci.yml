@@ -73,11 +73,11 @@ jobs:
           ${{ runner.temp }}/vcpkg/bootstrap-vcpkg.sh
           echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
       - name: Configure
-        run: cmake --preset default
+        run: cmake --preset macos
       - name: Build
-        run: cmake --build build/default
+        run: cmake --build build/macos
       - name: Test
-        run: ctest --test-dir build/default --output-on-failure
+        run: ctest --test-dir build/macos --output-on-failure
 
   windows:
     runs-on: windows-2022

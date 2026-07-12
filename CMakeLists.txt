@@ -20,6 +20,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(CompilerWarnings)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
+find_package(onnxruntime CONFIG REQUIRED)
 
 add_library(biopic_core STATIC)
 add_library(biopic::core ALIAS biopic_core)
@@ -35,7 +36,8 @@ target_sources(
           src/hash/distance.cpp
           src/ai/classifier.cpp
           src/ai/model.cpp
-          src/ai/preprocessing.cpp)
+          src/ai/preprocessing.cpp
+          src/ai/runtime.cpp)
 
 target_include_directories(
   biopic_core
@@ -48,7 +50,7 @@ target_compile_definitions(
          BIOPIC_VERSION_MINOR=${PROJECT_VERSION_MINOR}
          BIOPIC_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 
-target_link_libraries(biopic_core PUBLIC ${OpenCV_LIBS})
+target_link_libraries(biopic_core PUBLIC ${OpenCV_LIBS} PRIVATE onnxruntime::onnxruntime)
 
 biopic_set_target_warnings(biopic_core)
 

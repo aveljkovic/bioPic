@@ -1,0 +1,8 @@
+x64-windows/
+x64-windows/include/
+x64-windows/include/SafeInt.hpp
+x64-windows/share/
+x64-windows/share/safeint/
+x64-windows/share/safeint/copyright
+x64-windows/share/safeint/vcpkg.spdx.json
+x64-windows/share/safeint/vcpkg_abi_info.txt

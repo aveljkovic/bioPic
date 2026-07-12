@@ -41,7 +41,7 @@ std::optional<Model> Model::load_from_path(const std::filesystem::path& path) {
 
     ModelMetadata metadata;
     metadata.version = "0.0.0";
-    metadata.description = "Model path validated; inference backend not wired in Milestone 2";
+    metadata.description = "Model path validated; ONNX session loads at inference time";
     metadata.attributes["source_path"] = path.string();
 
     const std::filesystem::path sidecar = path.parent_path() / (path.stem().string() + ".meta.txt");

@@ -1,0 +1,13 @@
+x64-windows/
+x64-windows/include/
+x64-windows/include/dlpack/
+x64-windows/include/dlpack/dlpack.h
+x64-windows/share/
+x64-windows/share/dlpack/
+x64-windows/share/dlpack/copyright
+x64-windows/share/dlpack/dlpackConfig.cmake
+x64-windows/share/dlpack/dlpackConfigVersion.cmake
+x64-windows/share/dlpack/dlpackTargets.cmake
+x64-windows/share/dlpack/usage
+x64-windows/share/dlpack/vcpkg.spdx.json
+x64-windows/share/dlpack/vcpkg_abi_info.txt

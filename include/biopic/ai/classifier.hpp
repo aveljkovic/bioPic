@@ -4,6 +4,7 @@
 
 #include "biopic/ai/model.hpp"
 #include "biopic/ai/preprocessing.hpp"
+#include "biopic/ai/runtime.hpp"
 #include "biopic/image.hpp"
 
 namespace biopic {
@@ -49,6 +50,23 @@ class DummyClassifier final : public IClassifier {
     ClassifierKind kind_;
     Model model_;
     Preprocessor preprocessor_;
+};
+
+// ONNX Runtime-backed classifier. Requires a valid ONNX model path in Model.
+class OnnxClassifier final : public IClassifier {
+  public:
+    OnnxClassifier(ClassifierKind kind, Model model, RuntimeOptions options = {});
+
+    [[nodiscard]] ClassifierKind kind() const override;
+    [[nodiscard]] const Model& model() const override;
+    [[nodiscard]] ClassificationResult classify(const ImageView& image) override;
+    [[nodiscard]] const OnnxInferenceSession& session() const noexcept;
+
+  private:
+    ClassifierKind kind_;
+    OnnxRuntimeEnvironment environment_;
+    Preprocessor preprocessor_;
+    OnnxInferenceSession session_;
 };
 
 } // namespace biopic
