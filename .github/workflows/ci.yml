@@ -14,16 +14,25 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
+      - name: Update apt package index
+        run: sudo apt-get update
+      - name: Install Linux build dependencies
         run: |
-          sudo apt-get update
           sudo apt-get install -y \
             ninja-build \
+            pkg-config \
             autoconf \
             autoconf-archive \
             automake \
-            libtool \
-            pkg-config
+            libtool
+      - name: Verify autotools before vcpkg
+        run: |
+          command -v ninja
+          command -v pkg-config
+          command -v autoconf
+          command -v automake
+          command -v libtoolize
+          libtoolize --version
       - name: Cache vcpkg binary artifacts
         uses: actions/cache@v4
         with:
