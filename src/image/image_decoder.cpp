@@ -175,7 +175,8 @@ std::optional<DecodedImage> ImageDecoder::decode(std::span<const std::uint8_t> e
     DecodedImage result;
     result.width = rgb.cols;
     result.height = rgb.rows;
-    result.rgb.resize(static_cast<std::size_t>(rgb.total() * rgb.channels()));
+    result.rgb.resize(static_cast<std::size_t>(rgb.total()) *
+                      static_cast<std::size_t>(rgb.channels()));
     if (!rgb.isContinuous()) {
         return std::nullopt;
     }

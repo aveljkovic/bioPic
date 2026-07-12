@@ -14,7 +14,8 @@ namespace {
 biopic::Fingerprint hash_bgr_mat(const cv::Mat& bgr) {
     cv::Mat rgb;
     cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-    std::vector<std::uint8_t> buffer(static_cast<std::size_t>(rgb.total() * rgb.channels()));
+    std::vector<std::uint8_t> buffer(static_cast<std::size_t>(rgb.total()) *
+                                     static_cast<std::size_t>(rgb.channels()));
     std::copy_n(rgb.ptr<std::uint8_t>(), buffer.size(), buffer.data());
     biopic::ImageView view(rgb.cols, rgb.rows, buffer);
     biopic::Hasher hasher;

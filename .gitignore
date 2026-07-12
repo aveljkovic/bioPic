@@ -47,8 +47,7 @@ CMakeUserPresets.json
 *.dylib
 *.exp
 
-# vcpkg local install tree inside build dirs (covered by build/)
-vcpkg_installed/
+/.vcpkg-bincache/
 
 # Test and benchmark output
 *.gtest.xml

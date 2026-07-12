@@ -51,7 +51,7 @@ BIOPIC_API BiopicEngine* biopic_engine_create(void);
 BIOPIC_API void biopic_engine_destroy(BiopicEngine* engine);
 
 BIOPIC_API BiopicStatus biopic_hash_image(BiopicEngine* engine, const uint8_t* data, size_t size,
-                                           BiopicFingerprint* out_fingerprint);
+                                          BiopicFingerprint* out_fingerprint);
 
 BIOPIC_API BiopicStatus biopic_hash_rgb(BiopicEngine* engine, int32_t width, int32_t height,
                                         const uint8_t* rgb, size_t rgb_size,
@@ -61,6 +61,11 @@ BIOPIC_API BiopicStatus biopic_compare_hashes(const BiopicFingerprint* a,
                                               const BiopicFingerprint* b,
                                               BiopicDistanceMetric metric, BiopicDistance* out);
 
+/*
+ * Returns a pointer to thread-local storage owned by the library.
+ * The pointer remains valid until the next BioPic C API call on the same thread that may
+ * update the last-error message. Do not free or modify the returned string.
+ */
 BIOPIC_API const char* biopic_last_error(void);
 
 #ifdef __cplusplus

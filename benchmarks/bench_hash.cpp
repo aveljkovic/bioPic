@@ -13,8 +13,8 @@ static void BM_HashResolution(benchmark::State& state) {
     biopic::Hasher hasher;
 
     for (auto _ : state) {
-        const auto fingerprint = hasher.compute(view);
-        benchmark::DoNotOptimize(fingerprint.bytes);
+        biopic::Fingerprint fingerprint = hasher.compute(view);
+        benchmark::DoNotOptimize(fingerprint.bytes.data());
     }
     state.SetItemsProcessed(static_cast<int64_t>(state.iterations()));
 }
@@ -28,7 +28,7 @@ static void BM_L1Comparison(benchmark::State& state) {
     }
 
     for (auto _ : state) {
-        const auto distance = biopic::l1_distance(a.bytes, b.bytes);
+        const std::int64_t distance = biopic::l1_distance(a.bytes, b.bytes);
         benchmark::DoNotOptimize(distance);
     }
 }
@@ -40,7 +40,7 @@ static void BM_L2Comparison(benchmark::State& state) {
     b.bytes.fill(48);
 
     for (auto _ : state) {
-        const auto distance = biopic::l2_distance(a.bytes, b.bytes);
+        const double distance = biopic::l2_distance(a.bytes, b.bytes);
         benchmark::DoNotOptimize(distance);
     }
 }

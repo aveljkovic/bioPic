@@ -112,4 +112,4 @@ BiopicStatus biopic_compare_hashes(const BiopicFingerprint* a, const BiopicFinge
     return BIOPIC_OK;
 }
 
-const char* biopic_last_error() { return biopic::last_error_message().c_str(); }
+const char* biopic_last_error(void) { return biopic::last_error_c_str(); }

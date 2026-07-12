@@ -24,6 +24,12 @@ struct HashParameters {
 
     static constexpr double clip_value = 0.20;
     static constexpr double epsilon = 1e-12;
+
+    // Degenerate-gradient noise floor: sqrt(component_count) * machine_epsilon * 8, scaled by
+    // peak feature-map magnitude before L2 normalization. Suppresses cross-platform FP residue
+    // without affecting images that carry genuine gradient energy.
+    static constexpr double relative_low_energy_ratio =
+        12.0 * 2.2204460492503131e-16 * 8.0;
 };
 
 static_assert(HashParameters::component_count == kFingerprintComponentCount);

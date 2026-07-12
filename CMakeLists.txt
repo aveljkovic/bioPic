@@ -49,6 +49,12 @@ target_link_libraries(biopic_core PUBLIC ${OpenCV_LIBS})
 
 biopic_set_target_warnings(biopic_core)
 
+if(MSVC)
+  target_compile_options(biopic_core PRIVATE /fp:precise)
+else()
+  target_compile_options(biopic_core PRIVATE -fno-fast-math -ffp-contract=off)
+endif()
+
 if(BIOPIC_BUILD_C_ABI)
   add_library(biopic_c SHARED)
   add_library(biopic::c ALIAS biopic_c)

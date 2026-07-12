@@ -12,14 +12,12 @@ TEST(HasherTest, EmptyImageProducesZeroFingerprint) {
     EXPECT_TRUE(fingerprint.is_zero());
 }
 
-TEST(HasherTest, OnePixelImageIsDeterministic) {
+TEST(HasherTest, OnePixelUniformImageProducesZeroFingerprint) {
     const auto image = biopic::test_support::make_uniform_rgb(1, 1, 255, 128, 64);
     biopic::ImageView view(image.width, image.height, image.rgb);
     biopic::Hasher hasher;
-    const auto first = hasher.compute(view);
-    const auto second = hasher.compute(view);
-    EXPECT_EQ(first.bytes, second.bytes);
-    EXPECT_FALSE(first.is_zero());
+    const auto fingerprint = hasher.compute(view);
+    EXPECT_TRUE(fingerprint.is_zero());
 }
 
 TEST(HasherTest, ExtremeAspectRatioProducesFingerprint) {

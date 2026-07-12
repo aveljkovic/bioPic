@@ -57,6 +57,26 @@ std::uint8_t quantize_component(double value) {
     return static_cast<std::uint8_t>(std::llround(scaled));
 }
 
+bool is_spatially_uniform_rgb(const ImageView& image) {
+    if (image.empty()) {
+        return true;
+    }
+
+    const std::uint8_t reference_red = image.red_at(0, 0);
+    const std::uint8_t reference_green = image.green_at(0, 0);
+    const std::uint8_t reference_blue = image.blue_at(0, 0);
+
+    for (int y = 0; y < image.height(); ++y) {
+        for (int x = 0; x < image.width(); ++x) {
+            if (image.red_at(x, y) != reference_red || image.green_at(x, y) != reference_green ||
+                image.blue_at(x, y) != reference_blue) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 IntegralImage build_integral_image(const ImageView& image) {
     const int width = image.width();
     const int height = image.height();
@@ -90,7 +110,7 @@ double interpolate_integral(const IntegralImage& integral, int stride, double x,
 
     const auto at = [&](int ix, int iy) -> double {
         ix = std::max(0, std::min(ix, stride - 1));
-        iy = std::max(0, std::min(iy, static_cast<int>(integral.size() / stride) - 1));
+        iy = std::max(0, std::min(iy, static_cast<int>(integral.size() / static_cast<std::size_t>(stride)) - 1));
         return static_cast<double>(integral[static_cast<std::size_t>(iy * stride + ix)]);
     };
 
@@ -129,7 +149,7 @@ double rectangle_mean(const IntegralImage& integral, int integral_stride, int im
     return sum / (width * height);
 }
 
-void splat_bilinear(std::array<double, HashParameters::component_count>& output, int channel,
+void splat_bilinear(std::array<double, HashParameters::component_count>& output, std::size_t channel,
                     double x, double y, double value) {
     const int x0 = static_cast<int>(std::floor(x));
     const int y0 = static_cast<int>(std::floor(y));
@@ -145,11 +165,10 @@ void splat_bilinear(std::array<double, HashParameters::component_count>& output,
             oy >= static_cast<int>(HashParameters::output_grid_height) || weight <= 0.0) {
             return;
         }
-        const std::size_t index = static_cast<std::size_t>(channel) *
-                                        HashParameters::output_grid_width *
-                                        HashParameters::output_grid_height +
-                                    static_cast<std::size_t>(oy) * HashParameters::output_grid_width +
-                                    static_cast<std::size_t>(ox);
+        const std::size_t index = channel * HashParameters::output_grid_width *
+                                      HashParameters::output_grid_height +
+                                  static_cast<std::size_t>(oy) * HashParameters::output_grid_width +
+                                  static_cast<std::size_t>(ox);
         output[index] += value * weight;
     };
 
@@ -164,7 +183,7 @@ Fingerprint compute_v1(const ImageView& image) {
     fingerprint.algorithm = HashAlgorithm::BioPic;
     fingerprint.version = HashParameters::version;
 
-    if (image.empty()) {
+    if (image.empty() || is_spatially_uniform_rgb(image)) {
         return fingerprint;
     }
 
@@ -176,10 +195,15 @@ Fingerprint compute_v1(const ImageView& image) {
 
     std::array<double, HashParameters::feature_grid_width * HashParameters::feature_grid_height>
         feature_map{};
+    double feature_peak = 0.0;
     for (std::size_t j = 0; j < HashParameters::feature_grid_height; ++j) {
         for (std::size_t i = 0; i < HashParameters::feature_grid_width; ++i) {
-            const double nu = (static_cast<double>(i) + 0.5) / static_cast<double>(HashParameters::feature_grid_width);
-            const double nv = (static_cast<double>(j) + 0.5) / static_cast<double>(HashParameters::feature_grid_height);
+            const double nu =
+                (static_cast<double>(i) + 0.5) /
+                static_cast<double>(HashParameters::feature_grid_width);
+            const double nv =
+                (static_cast<double>(j) + 0.5) /
+                static_cast<double>(HashParameters::feature_grid_height);
             const double cx = nu * static_cast<double>(width);
             const double cy = nv * static_cast<double>(height);
 
@@ -193,6 +217,7 @@ Fingerprint compute_v1(const ImageView& image) {
                 weighted_sum += HashParameters::scale_weights[scale] * mean;
             }
             feature_map[j * HashParameters::feature_grid_width + i] = weighted_sum;
+            feature_peak = std::max(feature_peak, std::abs(weighted_sum));
         }
     }
 
@@ -216,11 +241,17 @@ Fingerprint compute_v1(const ImageView& image) {
             const double out_x = static_cast<double>(i) * feature_to_output_scale;
             const double out_y = static_cast<double>(j) * feature_to_output_scale;
 
-            for (int channel = 0; channel < static_cast<int>(HashParameters::directional_channels);
-                 ++channel) {
+            for (std::size_t channel = 0; channel < HashParameters::directional_channels; ++channel) {
                 splat_bilinear(splat_grid, channel, out_x, out_y, channels[channel]);
             }
         }
+    }
+
+    const double raw_gradient_norm = l2_norm(splat_grid);
+    const double low_energy_threshold =
+        HashParameters::relative_low_energy_ratio * feature_peak;
+    if (raw_gradient_norm <= low_energy_threshold || raw_gradient_norm < HashParameters::epsilon) {
+        return fingerprint;
     }
 
     normalize_and_clip(splat_grid);
