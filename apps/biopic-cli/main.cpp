@@ -1,11 +1,13 @@
-#include "biopic/ai/classifier.hpp"
+#include "biopic/ai/classifier_config.hpp"
 #include "biopic/distance.hpp"
 #include "biopic/fingerprint.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
 
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 
 namespace {
@@ -14,7 +16,7 @@ void print_usage() {
     std::cerr << "Usage:\n"
               << "  biopic hash IMAGE\n"
               << "  biopic compare IMAGE_A IMAGE_B\n"
-              << "  biopic classify IMAGE\n";
+              << "  biopic classify IMAGE [--config CONFIG]\n";
 }
 
 int hash_image(const std::filesystem::path& path) {
@@ -70,7 +72,42 @@ int compare_images(const std::filesystem::path& left, const std::filesystem::pat
     return 0;
 }
 
-int classify_image(const std::filesystem::path& path) {
+std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** argv) {
+    for (int index = 3; index < argc - 1; ++index) {
+        const std::string argument = argv[index];
+        if (argument == "--config") {
+            return std::filesystem::path(argv[index + 1]);
+        }
+    }
+
+    const char* config_from_env = std::getenv("BIOPIC_CLASSIFIER_CONFIG");
+    if (config_from_env != nullptr && config_from_env[0] != '\0') {
+        return std::filesystem::path(config_from_env);
+    }
+    return std::nullopt;
+}
+
+int classify_image(const std::filesystem::path& path,
+                   const std::optional<std::filesystem::path>& config_path) {
+    if (!config_path.has_value()) {
+        std::cerr << "Classifier configuration is required. Pass --config CONFIG or set "
+                     "BIOPIC_CLASSIFIER_CONFIG.\n";
+        return 1;
+    }
+
+    const auto config = biopic::ClassifierConfig::load_from_file(*config_path);
+    if (!config.has_value()) {
+        std::cerr << "Failed to load classifier configuration: " << *config_path << '\n';
+        return 1;
+    }
+
+    const auto classifier = biopic::create_classifier(*config);
+    if (classifier == nullptr) {
+        std::cerr << "Failed to initialize classifier from configuration: " << *config_path
+                  << '\n';
+        return 1;
+    }
+
     biopic::ImageDecoder decoder;
     const auto decoded = decoder.decode_file(path.string());
     if (!decoded) {
@@ -79,8 +116,7 @@ int classify_image(const std::filesystem::path& path) {
     }
 
     biopic::ImageView view(decoded->width, decoded->height, decoded->rgb);
-    biopic::DummyClassifier classifier;
-    const biopic::ClassificationResult result = classifier.classify(view);
+    const biopic::ClassificationResult result = classifier->classify(view);
 
     std::cout << "Label: " << result.label << '\n';
     std::cout << "Confidence: " << result.confidence << '\n';
@@ -103,8 +139,8 @@ int main(int argc, char** argv) {
     if (command == "compare" && argc == 4) {
         return compare_images(argv[2], argv[3]);
     }
-    if (command == "classify" && argc == 3) {
-        return classify_image(argv[2]);
+    if (command == "classify" && argc >= 3) {
+        return classify_image(argv[2], resolve_classifier_config(argc, argv));
     }
 
     print_usage();

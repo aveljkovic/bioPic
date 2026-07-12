@@ -1,5 +1,7 @@
 #include "biopic/ai/runtime.hpp"
 
+#include "biopic/ai/inference_types.hpp"
+
 #include <onnxruntime_cxx_api.h>
 
 #include <array>

@@ -1,25 +1,13 @@
 #pragma once
 
-#include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
-#include <vector>
 
+#include "biopic/ai/inference_types.hpp"
 #include "biopic/ai/model.hpp"
 #include "biopic/ai/preprocessing.hpp"
 
 namespace biopic {
-
-struct InferenceOutput {
-    std::vector<std::int64_t> shape;
-    std::vector<float> values;
-};
-
-struct RuntimeOptions {
-    int intra_op_num_threads = 1;
-    bool enable_cpu_mem_arena = true;
-};
 
 // Owns the process-wide ONNX Runtime environment (Ort::Env).
 class OnnxRuntimeEnvironment {

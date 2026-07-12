@@ -29,22 +29,30 @@ biopic_add_test(test_golden_vectors golden/test_golden_vectors.cpp)
 biopic_add_test(test_determinism golden/test_determinism.cpp)
 biopic_add_test(test_transformations golden/test_transformations.cpp)
 biopic_add_test(test_classifier unit/test_classifier.cpp)
+biopic_add_test(test_classifier_config unit/test_classifier_config.cpp)
 biopic_add_test(test_model unit/test_model.cpp)
+biopic_add_test(test_output_mapping unit/test_output_mapping.cpp)
 biopic_add_test(test_preprocessing unit/test_preprocessing.cpp)
+biopic_add_test(test_tensor_contract unit/test_tensor_contract.cpp)
 biopic_add_test(test_onnx_runtime unit/test_onnx_runtime.cpp)
 target_compile_definitions(
   test_onnx_runtime
   PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
+target_compile_definitions(
+  test_classifier_config
+  PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 if(BIOPIC_BUILD_CLI)
   set(CLI_CLASSIFY_FIXTURE_PNG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/cli_classify.png)
+  set(CLI_CLASSIFIER_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/classifier.conf)
 
   add_test(NAME test_cli_classify COMMAND $<TARGET_FILE:biopic-cli> classify
-                                          ${CLI_CLASSIFY_FIXTURE_PNG})
+                                          ${CLI_CLASSIFY_FIXTURE_PNG} --config
+                                          ${CLI_CLASSIFIER_CONFIG})
   set_tests_properties(
     test_cli_classify
     PROPERTIES
       PASS_REGULAR_EXPRESSION
-      "Label: safe[\r\n]+Confidence: 0[\r\n]+Detection result: not detected")
+      "Label: channel_r[\r\n]+Confidence: 0.[0-9]+[\r\n]+Detection result: not detected")
 endif()
 biopic_add_test(test_c_abi unit/test_c_abi.cpp)
 if(BIOPIC_BUILD_C_ABI)

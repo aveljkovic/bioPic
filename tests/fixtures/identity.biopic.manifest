@@ -1,0 +1,16 @@
+name=identity-test
+version=1.0.0
+description=ONNX identity fixture for inference pipeline tests
+input_width=4
+input_height=4
+input_channels=3
+scale=0.00392156862745098
+mean_r=0.0
+mean_g=0.0
+mean_b=0.0
+std_r=1.0
+std_g=1.0
+std_b=1.0
+labels=channel_r,channel_g,channel_b
+detection_label=channel_r
+detection_threshold=1.0

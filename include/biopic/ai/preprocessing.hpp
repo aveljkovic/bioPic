@@ -4,12 +4,12 @@
 #include <optional>
 #include <vector>
 
-#include "biopic/ai/model.hpp"
+#include "biopic/ai/model_input.hpp"
 #include "biopic/image.hpp"
 
 namespace biopic {
 
-// Channel-first float tensor prepared for future inference backends.
+// Channel-first float tensor prepared for inference backends.
 struct PreparedTensor {
     int width = 0;
     int height = 0;

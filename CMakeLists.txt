@@ -35,9 +35,13 @@ target_sources(
           src/hash/fingerprint.cpp
           src/hash/distance.cpp
           src/ai/classifier.cpp
+          src/ai/classifier_config.cpp
+          src/ai/classification_result.cpp
           src/ai/model.cpp
+          src/ai/output_mapping.cpp
           src/ai/preprocessing.cpp
-          src/ai/runtime.cpp)
+          src/ai/runtime.cpp
+          src/ai/tensor_contract.cpp)
 
 target_include_directories(
   biopic_core

@@ -1,6 +1,7 @@
 #include "biopic/ai/classifier.hpp"
 
-#include "biopic/ai/runtime.hpp"
+#include "biopic/ai/classification_result.hpp"
+#include "biopic/ai/tensor_contract.hpp"
 
 namespace biopic {
 
@@ -18,10 +19,6 @@ std::string classifier_kind_to_string(ClassifierKind kind) {
         return "child_safety";
     }
     return "unknown";
-}
-
-ClassificationResult ClassificationResult::not_detected(std::string label) {
-    return ClassificationResult{std::move(label), 0.0, false};
 }
 
 DummyClassifier::DummyClassifier(ClassifierKind kind)
@@ -45,7 +42,11 @@ ClassificationResult DummyClassifier::classify(const ImageView& image) {
         return ClassificationResult::not_detected("preprocessing_failed");
     }
 
-    (void)tensor;
+    const auto contract_error = model_.metadata().tensor_contract.validate(*tensor);
+    if (contract_error.has_value()) {
+        return ClassificationResult::not_detected("tensor_contract_violation");
+    }
+
     return ClassificationResult::not_detected("safe");
 }
 
@@ -75,13 +76,17 @@ ClassificationResult OnnxClassifier::classify(const ImageView& image) {
         return ClassificationResult::not_detected("preprocessing_failed");
     }
 
+    const auto contract_error = model().metadata().tensor_contract.validate(*tensor);
+    if (contract_error.has_value()) {
+        return ClassificationResult::not_detected("tensor_contract_violation");
+    }
+
     const auto output = session_.run(*tensor);
     if (!output.has_value()) {
         return ClassificationResult::not_detected("inference_failed");
     }
 
-    (void)output;
-    return ClassificationResult::not_detected("safe");
+    return model().output_mapping().map(*output);
 }
 
 } // namespace biopic

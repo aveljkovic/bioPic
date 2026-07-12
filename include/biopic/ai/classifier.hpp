@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "biopic/ai/classification_result.hpp"
 #include "biopic/ai/model.hpp"
 #include "biopic/ai/preprocessing.hpp"
 #include "biopic/ai/runtime.hpp"
@@ -18,14 +19,6 @@ enum class ClassifierKind {
 };
 
 [[nodiscard]] std::string classifier_kind_to_string(ClassifierKind kind);
-
-struct ClassificationResult {
-    std::string label;
-    double confidence = 0.0;
-    bool detected = false;
-
-    [[nodiscard]] static ClassificationResult not_detected(std::string label = "safe");
-};
 
 // Abstract image classifier interface for future ONNX-backed models.
 class IClassifier {

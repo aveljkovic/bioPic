@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "biopic/ai/classifier.hpp"
+#include "biopic/ai/classifier_config.hpp"
 #include "biopic/ai/runtime.hpp"
 
 #include "test_images.hpp"
@@ -24,7 +25,7 @@ TEST(OnnxRuntimeTest, EnvironmentInitializes) {
 TEST(OnnxRuntimeTest, LoadMissingModelFails) {
     biopic::OnnxRuntimeEnvironment environment;
     biopic::Model model("missing", std::filesystem::path("definitely_missing_model.onnx"),
-                        biopic::ModelInputRequirements{}, biopic::ModelMetadata{});
+                        biopic::ModelMetadata{});
     biopic::OnnxInferenceSession session(environment, std::move(model));
 
     EXPECT_FALSE(session.load());
@@ -70,25 +71,20 @@ TEST(OnnxRuntimeTest, RunBeforeLoadReportsError) {
 
 TEST(OnnxRuntimeTest, IdentityModelRunsInference) {
     const std::filesystem::path model_path = fixture_path("identity.onnx");
+    const std::filesystem::path manifest_path = fixture_path("identity.biopic.manifest");
     ASSERT_TRUE(std::filesystem::exists(model_path));
 
-    biopic::ModelInputRequirements requirements;
-    requirements.width = 4;
-    requirements.height = 4;
-    requirements.channels = 3;
-
     biopic::OnnxRuntimeEnvironment environment;
-    const auto loaded = biopic::Model::load_from_path(model_path);
+    const auto loaded = biopic::Model::load_from_manifest(model_path, manifest_path);
     ASSERT_TRUE(loaded.has_value());
-    biopic::Model model(loaded->name(), loaded->path(), requirements, loaded->metadata());
 
-    biopic::OnnxInferenceSession session(environment, std::move(model));
+    biopic::OnnxInferenceSession session(environment, *loaded);
     ASSERT_TRUE(session.load()) << session.last_error();
     EXPECT_TRUE(session.is_loaded());
 
     const auto image = biopic::test_support::make_uniform_rgb(4, 4, 10, 20, 30);
     biopic::ImageView view(image.width, image.height, image.rgb);
-    biopic::Preprocessor preprocessor(requirements);
+    biopic::Preprocessor preprocessor(loaded->input_requirements());
     const auto tensor = preprocessor.prepare(view);
     ASSERT_TRUE(tensor.has_value());
 
@@ -100,7 +96,7 @@ TEST(OnnxRuntimeTest, IdentityModelRunsInference) {
 
 TEST(OnnxRuntimeTest, OnnxClassifierReportsLoadFailureForMissingModel) {
     biopic::Model model("missing", std::filesystem::path("missing_classifier_model.onnx"),
-                        biopic::ModelInputRequirements{}, biopic::ModelMetadata{});
+                        biopic::ModelMetadata{});
     biopic::OnnxClassifier classifier(biopic::ClassifierKind::Nudity, std::move(model));
 
     const auto image = biopic::test_support::make_uniform_rgb(8, 8, 255, 0, 0);
@@ -108,5 +104,21 @@ TEST(OnnxRuntimeTest, OnnxClassifierReportsLoadFailureForMissingModel) {
     const auto result = classifier.classify(view);
 
     EXPECT_EQ(result.label, "model_load_failed");
+    EXPECT_FALSE(result.detected);
+}
+
+TEST(OnnxRuntimeTest, OnnxClassifierMapsIdentityOutputToManifestLabels) {
+    const auto config = biopic::ClassifierConfig::load_from_file(fixture_path("classifier.conf"));
+    ASSERT_TRUE(config.has_value());
+
+    const auto classifier = biopic::create_classifier(*config);
+    ASSERT_NE(classifier, nullptr);
+
+    const auto image = biopic::test_support::make_uniform_rgb(4, 4, 10, 20, 30);
+    biopic::ImageView view(image.width, image.height, image.rgb);
+    const auto result = classifier->classify(view);
+
+    EXPECT_EQ(result.label, "channel_b");
+    EXPECT_NEAR(result.confidence, 30.0 / 255.0, 1e-4);
     EXPECT_FALSE(result.detected);
 }
