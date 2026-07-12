@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "biopic/distance.hpp"
 #include "biopic/fingerprint.hpp"
 

@@ -56,6 +56,9 @@ else()
 endif()
 
 if(BIOPIC_BUILD_C_ABI)
+  # Static archive objects must be PIC when linked into libbiopic_c.so on Linux.
+  set_target_properties(biopic_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
   add_library(biopic_c SHARED)
   add_library(biopic::c ALIAS biopic_c)
 
