@@ -1,0 +1,73 @@
+# Build outputs
+build/
+out/
+cmake-build-*/
+
+# IDE and editor
+.vs/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.VC.opendb
+*.opensdf
+*.sdf
+
+# CMake generated
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+Makefile
+*.cmake
+!cmake/*.cmake
+!CMakeLists.txt
+!CMakePresets.json
+
+# CMake user presets (local overrides; keep repo presets)
+CMakeUserPresets.json
+
+# Compiled binaries and libraries
+*.dll
+*.lib
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.so
+*.dylib
+*.exp
+
+# vcpkg local install tree inside build dirs (covered by build/)
+vcpkg_installed/
+
+# Test and benchmark output
+*.gtest.xml
+benchmark_results/
+Testing/
+
+# Local environment and secrets
+.env
+.env.*
+*.local
+local.config.*
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*~

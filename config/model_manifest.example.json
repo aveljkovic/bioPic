@@ -1,0 +1,22 @@
+{
+  "model_id": "example-nudity-classifier",
+  "model_version": "0.0.0-dev",
+  "model_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "input_width": 224,
+  "input_height": 224,
+  "tensor_layout": "NCHW",
+  "color_order": "RGB",
+  "scale": 0.00392156862745098,
+  "mean": [0.485, 0.456, 0.406],
+  "std": [0.229, 0.224, 0.225],
+  "output_labels": ["safe", "suggestive", "partial_nudity", "explicit_nudity", "uncertain"],
+  "output_interpretation": {
+    "safe": "allow",
+    "suggestive": "review",
+    "partial_nudity": "review",
+    "explicit_nudity": "block",
+    "uncertain": "review"
+  },
+  "license": "UNSPECIFIED — do not deploy until reviewed",
+  "notes": "Development placeholder manifest. Model weights are not bundled."
+}

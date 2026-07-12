@@ -1,0 +1,90 @@
+openapi: 3.1.0
+info:
+  title: BioPic Moderation API
+  version: 0.1.0
+  description: |
+    Future REST contract for BioPic. Milestone 1 does not ship a server;
+    this specification documents the planned public API only.
+servers:
+  - url: https://api.example.com
+paths:
+  /v1/images/moderate:
+    post:
+      summary: Moderate an uploaded image
+      operationId: moderateImage
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image:
+                  type: string
+                  format: binary
+                subject_id:
+                  type: string
+      responses:
+        '200':
+          description: Moderation decision
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModerationResponse'
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is alive
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses:
+        '200':
+          description: Service is ready
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        '200':
+          description: Metrics payload
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    ModerationResponse:
+      type: object
+      required: [request_id, decision, reasons, recommended_action, fingerprint, processing_time_ms]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [allow, review, block]
+        reasons:
+          type: array
+          items:
+            type: string
+        recommended_action:
+          type: string
+        known_match:
+          type: object
+        classification:
+          type: object
+        fingerprint:
+          type: object
+          properties:
+            algorithm:
+              type: string
+            version:
+              type: integer
+        processing_time_ms:
+          type: integer
