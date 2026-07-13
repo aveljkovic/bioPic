@@ -1,4 +1,5 @@
 #include "biopic/ai/classifier_config.hpp"
+#include "biopic/database/fingerprint_store.hpp"
 #include "biopic/distance.hpp"
 #include "biopic/env.hpp"
 #include "biopic/fingerprint.hpp"
@@ -7,6 +8,7 @@
 #include "pipeline/scanner.hpp"
 
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -18,7 +20,9 @@ void print_usage() {
               << "  biopic hash IMAGE\n"
               << "  biopic compare IMAGE_A IMAGE_B\n"
               << "  biopic classify IMAGE [--config CONFIG]\n"
-              << "  biopic scan IMAGE [--config CONFIG]\n";
+              << "  biopic scan IMAGE [--config CONFIG]\n"
+              << "  biopic database add IMAGE --label LABEL\n"
+              << "  biopic database search IMAGE\n";
 }
 
 int hash_image(const std::filesystem::path& path) {
@@ -89,6 +93,28 @@ std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** 
     return std::nullopt;
 }
 
+std::optional<std::string> parse_label_argument(int argc, char** argv, int start_index) {
+    for (int index = start_index; index < argc - 1; ++index) {
+        const std::string argument = argv[index];
+        if (argument == "--label") {
+            return std::string(argv[index + 1]);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<biopic::Fingerprint> fingerprint_from_image(const std::filesystem::path& path) {
+    biopic::ImageDecoder decoder;
+    const auto decoded = decoder.decode_file(path.string());
+    if (!decoded) {
+        return std::nullopt;
+    }
+
+    biopic::ImageView view(decoded->width, decoded->height, decoded->rgb);
+    biopic::Hasher hasher;
+    return hasher.compute(view);
+}
+
 int classify_image(const std::filesystem::path& path,
                    const std::optional<std::filesystem::path>& config_path) {
     if (!config_path.has_value()) {
@@ -128,7 +154,8 @@ int classify_image(const std::filesystem::path& path,
 
 int scan_image(const std::filesystem::path& path,
                const std::optional<std::filesystem::path>& config_path) {
-    const auto result = biopic::scan_file(path, config_path);
+    const auto result =
+        biopic::scan_file(path, config_path, &biopic::shared_fingerprint_store());
     if (!result.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
         return 1;
@@ -142,7 +169,15 @@ int scan_image(const std::filesystem::path& path,
     std::cout << "  Algorithm: biopic\n";
     std::cout << "  Version: " << result->fingerprint.version << '\n';
     std::cout << "  Status: generated\n\n";
-    std::cout << "Classifier:\n";
+    std::cout << "Database:\n";
+    std::cout << "  Match: " << biopic::match_status_label(result->match_status) << '\n';
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "  Distance: " << result->nearest_distance << '\n';
+    if (result->matched_record.has_value()) {
+        std::cout << "  Record ID: " << result->matched_record->id << '\n';
+        std::cout << "  Record Label: " << result->matched_record->label << '\n';
+    }
+    std::cout << "\nClassifier:\n";
     std::cout << "  Status: " << result->classifier_status << '\n';
     if (result->classification.has_value()) {
         std::cout << "  Label: " << result->classification->label << '\n';
@@ -152,6 +187,50 @@ int scan_image(const std::filesystem::path& path,
     }
     std::cout << "\nDecision:\n";
     std::cout << "  " << biopic::scan_decision_label(decision) << '\n';
+    return 0;
+}
+
+int database_add(const std::filesystem::path& path, const std::string& label) {
+    const auto fingerprint = fingerprint_from_image(path);
+    if (!fingerprint.has_value()) {
+        std::cerr << "Failed to decode image: " << path << '\n';
+        return 1;
+    }
+
+    biopic::FingerprintRecord record;
+    record.fingerprint = *fingerprint;
+    record.label = label;
+    biopic::FingerprintStore& store = biopic::shared_fingerprint_store();
+    if (!store.add(record)) {
+        std::cerr << "Failed to store fingerprint\n";
+        return 1;
+    }
+
+    const auto stored = store.find_exact(*fingerprint);
+    if (!stored.has_value()) {
+        std::cerr << "Failed to retrieve stored fingerprint\n";
+        return 1;
+    }
+
+    std::cout << "Fingerprint stored\n\n";
+    std::cout << "ID:\n" << stored->id << "\n\n";
+    std::cout << "Label:\n" << stored->label << '\n';
+    return 0;
+}
+
+int database_search(const std::filesystem::path& path) {
+    const auto fingerprint = fingerprint_from_image(path);
+    if (!fingerprint.has_value()) {
+        std::cerr << "Failed to decode image: " << path << '\n';
+        return 1;
+    }
+
+    const biopic::FingerprintStore& store = biopic::shared_fingerprint_store();
+    const biopic::NearestMatchResult nearest = store.find_nearest(*fingerprint);
+
+    std::cout << "Match:\n" << (nearest.exact_match ? "true" : "false") << "\n\n";
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "Distance:\n" << nearest.distance << '\n';
     return 0;
 }
 
@@ -175,6 +254,21 @@ int main(int argc, char** argv) {
     }
     if (command == "scan" && argc >= 3) {
         return scan_image(argv[2], resolve_classifier_config(argc, argv));
+    }
+    if (command == "database" && argc >= 4) {
+        const std::string subcommand = argv[2];
+        if (subcommand == "add") {
+            const auto label = parse_label_argument(argc, argv, 4);
+            if (!label.has_value()) {
+                std::cerr << "Missing required --label argument\n";
+                print_usage();
+                return 1;
+            }
+            return database_add(argv[3], *label);
+        }
+        if (subcommand == "search" && argc == 4) {
+            return database_search(argv[3]);
+        }
     }
 
     print_usage();

@@ -44,7 +44,8 @@ target_sources(
           src/ai/preprocessing.cpp
           src/ai/runtime.cpp
           src/ai/tensor_contract.cpp
-          src/pipeline/scanner.cpp)
+          src/pipeline/scanner.cpp
+          src/database/fingerprint_store.cpp)
 
 target_include_directories(
   biopic_core

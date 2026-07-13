@@ -2,6 +2,7 @@
 
 #include "biopic/ai/classifier.hpp"
 #include "biopic/ai/classifier_config.hpp"
+#include "biopic/database/fingerprint_store.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/types.hpp"
 #include "pipeline/scanner.hpp"
@@ -68,7 +69,7 @@ TEST(ScannerTest, ScanWithInjectedClassifierCombinesFingerprintAndClassification
     biopic::ImageView view(image.width, image.height, image.rgb);
 
     biopic::DummyClassifier classifier;
-    const biopic::ScanResult result = biopic::scan(view, classifier);
+    const biopic::ScanResult result = biopic::scan(view, classifier, nullptr);
 
     const biopic::Hasher hasher;
     EXPECT_EQ(result.fingerprint.bytes, hasher.compute(view).bytes);
@@ -93,4 +94,25 @@ TEST(ScannerTest, ScanFileDecodesOnceAndReturnsFingerprint) {
     EXPECT_EQ(result->classifier_availability, biopic::ClassifierAvailability::Skipped);
     EXPECT_FALSE(result->classification.has_value());
     EXPECT_EQ(result->fingerprint.version, biopic::kHashAlgorithmVersion);
+    EXPECT_EQ(result->match_status, biopic::MatchStatus::NoMatch);
+}
+
+TEST(ScannerTest, ExactDatabaseMatchBlocksWithoutClassifier) {
+    const auto image = biopic::test_support::make_uniform_rgb(16, 16, 90, 45, 20);
+    biopic::ImageView view(image.width, image.height, image.rgb);
+
+    biopic::Hasher hasher;
+    biopic::FingerprintStore store;
+    biopic::FingerprintRecord record;
+    record.fingerprint = hasher.compute(view);
+    record.label = "known_bad";
+    ASSERT_TRUE(store.add(record));
+
+    const biopic::ScanResult result = biopic::scan(view, std::nullopt, &store);
+    EXPECT_EQ(result.match_status, biopic::MatchStatus::ExactMatch);
+    ASSERT_TRUE(result.matched_record.has_value());
+    EXPECT_EQ(result.matched_record->label, "known_bad");
+    EXPECT_EQ(result.classifier_status, "skipped (database match)");
+    EXPECT_FALSE(result.classification.has_value());
+    EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Block);
 }
