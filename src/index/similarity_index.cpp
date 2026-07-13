@@ -1,4 +1,5 @@
 #include "biopic/database/fingerprint_store.hpp"
+#include "biopic/index/bucketed_index.hpp"
 #include "biopic/index/similarity_index.hpp"
 
 #include <algorithm>
@@ -106,6 +107,10 @@ std::size_t BruteForceIndex::size() const noexcept {
 
 std::unique_ptr<SimilarityIndex> create_brute_force_index() {
     return std::make_unique<BruteForceIndex>();
+}
+
+std::unique_ptr<SimilarityIndex> create_default_similarity_index() {
+    return create_bucketed_index();
 }
 
 } // namespace biopic

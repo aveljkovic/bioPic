@@ -48,4 +48,8 @@ class BruteForceIndex final : public SimilarityIndex {
 
 [[nodiscard]] std::unique_ptr<SimilarityIndex> create_brute_force_index();
 
+[[nodiscard]] std::unique_ptr<SimilarityIndex> create_bucketed_index();
+
+[[nodiscard]] std::unique_ptr<SimilarityIndex> create_default_similarity_index();
+
 } // namespace biopic

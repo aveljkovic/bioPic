@@ -1,8 +1,8 @@
 # BioPic Performance Baseline
 
-This document records similarity-search performance for **Milestone 7** (`BruteForceIndex`). Use it as a baseline when evaluating optimized backends in Milestone 8 (SQLite-assisted indexing) and later vector engines (Qdrant, FAISS, pgvector).
+This document records similarity-search performance for BioPic. Use it when evaluating optimized backends.
 
-## Architecture (Milestone 7)
+## Architecture (Milestone 8)
 
 ```
                  Image
@@ -16,16 +16,22 @@ This document records similarity-search performance for **Milestone 7** (`BruteF
           +--------+--------+
           |                 |
  SimilarityIndex       Classifier
- (BruteForceIndex)          |
+ (BucketedIndex)            |
           |                 |
           +--------+--------+
                    |
              ModerationDecision
                    |
-          SQLite Storage (persistence)
+          SQLite Storage + bucket index
 ```
 
-The scanner performs one `find_nearest()` pass per image when a database is configured. Similar-match detection reuses that result and checks the configured threshold — no second full scan.
+Candidate reduction flow:
+
+```
+Fingerprint → band/prefix bucket keys → candidate set → exact L2 verification
+```
+
+The scanner performs one `find_nearest()` pass per image when a database is configured.
 
 ## Benchmark setup
 
@@ -35,7 +41,6 @@ The scanner performs one `find_nearest()` pass per image when a database is conf
 | Platform | Windows 10, x64 |
 | CPU | 12 logical cores @ ~2.9 GHz |
 | Build | Release (`cmake --preset windows-default`) |
-| Backend | `BruteForceIndex` (O(n) linear scan) |
 | Fingerprint size | 144 bytes (BioPicHash v1) |
 | Metric | L2 (raw bytes, `use_normalized = false`) |
 | Tool | `bench_similarity_search` (Google Benchmark) |
@@ -50,74 +55,87 @@ build/default/benchmarks/Release/bench_similarity_search.exe --benchmark_repetit
 
 ### Methodology notes
 
-- **Nearest-neighbor** benchmarks use a query fingerprint that does **not** exactly match any stored record, forcing a full-database distance scan. This matches the common scan path for unknown images.
-- **Similar-query** benchmarks use `threshold = 50.0` and return all matches within threshold, sorted by distance.
+- **Nearest-neighbor** benchmarks use a query fingerprint that does **not** exactly match any stored record.
+- **BucketedIndex** uses 12 byte bands + prefix hash (FNV, 65536 buckets), then L2 verification on the candidate union.
+- **`find_nearest`** (scan path) uses bucket candidate reduction. **`query` / `find_similar`** verify against the full store for accuracy until Milestone 8B LSH.
+- **BruteForceIndex** scans every stored fingerprint (Milestone 7 baseline).
 - Results below use the **CPU mean** from Google Benchmark after 3 repetitions.
 
-## BruteForceIndex — nearest neighbor (`find_nearest`)
+## Nearest neighbor (`find_nearest`) — used by `biopic scan`
 
-Used by `biopic scan` when a database is attached.
+| Records | BruteForce | BucketedIndex | Speedup |
+|---------|------------|---------------|---------|
+| 100 | **6.8 µs** | **0.65 µs** | ~10× |
+| 1,000 | **62.8 µs** | **1.2 µs** | ~52× |
+| 10,000 | **642 µs** | **9.6 µs** | ~67× |
+| 100,000 | **7.75 ms** | **327 µs** | ~24× |
 
-| Records | Mean latency | Queries/sec | Scaling |
-|---------|--------------|-------------|---------|
-| 100 | **7.5 µs** | ~134,000 | — |
-| 1,000 | **75 µs** | ~13,300 | ~10× |
-| 10,000 | **730 µs** | ~1,370 | ~10× |
+Complexity:
 
-Complexity: **O(n)** — latency grows linearly with database size.
+- **BruteForceIndex:** O(n) — linear with database size
+- **BucketedIndex:** O(c) — proportional to candidate set size (typically hundreds, not millions)
 
-### Extrapolated scan cost (nearest only)
+### Extrapolated scan cost (nearest, BucketedIndex)
 
-| Fingerprints | Estimated latency |
-|--------------|-------------------|
-| 10,000 | ~0.7 ms |
-| 100,000 | ~7 ms |
-| 1,000,000 | ~70 ms |
-| 10,000,000 | ~700 ms |
-| 100,000,000 | ~7 s (unusable) |
+| Fingerprints | BruteForce (est.) | BucketedIndex (measured trend) |
+|--------------|-------------------|--------------------------------|
+| 1,000,000 | ~70 ms | ~3 ms (projected) |
+| 10,000,000 | ~700 ms | ~30 ms (projected) |
 
-## BruteForceIndex — similar query (`query` with threshold)
+## Similar query (`query` with threshold) — BruteForce baseline
 
-Used by `database search` and similar-match logic when multiple candidates are needed.
-
-| Records | Mean latency | Queries/sec | Scaling |
-|---------|--------------|-------------|---------|
-| 100 | **6.6 µs** | ~152,000 | — |
-| 1,000 | **67 µs** | ~14,800 | ~10× |
-| 10,000 | **679 µs** | ~1,470 | ~10× |
-
-Similar-query cost is comparable to nearest-neighbor at the same scale because both perform a full linear pass over stored fingerprints.
+| Records | Mean latency |
+|---------|--------------|
+| 100 | **6.6 µs** |
+| 1,000 | **62 µs** |
+| 10,000 | **660 µs** |
+| 100,000 | **6.93 ms** |
 
 ## Performance tests
 
-`test_similarity_index_performance` asserts that 10,000-record nearest and similar queries complete within **500 ms** on CI/dev hardware (conservative smoke test, not a tight SLA).
+- `test_similarity_index_performance` — 10,000-record smoke test (&lt;500 ms)
+- `test_bucketed_index` — correctness parity with BruteForceIndex
 
-## Planned backends (Milestone 8+)
+## Backend roadmap (Milestone 8+)
 
 ```
 SimilarityIndex
         |
-        +---- BruteForceIndex     (Milestone 7 — baseline above)
+        +---- BruteForceIndex        (Milestone 7 — O(n) baseline)
         |
-        +---- SQLiteIndex         (Milestone 8A — prefix buckets, bloom filters)
+        +---- BucketedIndex          (Milestone 8A — in-memory bucket index)
         |
-        +---- QdrantIndex         (Milestone 8B — external vector engine)
+        +---- SQLite bucket index    (Milestone 8A — fingerprint_buckets table)
         |
-        +---- FAISSIndex          (Milestone 8B — embedded ANN)
+        +---- LSH index              (Milestone 8B — multi-level / neighbor buckets)
+        |
+        +---- FaissIndex             (Milestone 8C — optional vector backend)
+        |
+        +---- QdrantIndex            (Milestone 8C)
+        |
+        +---- PgVectorIndex            (Milestone 8C)
 ```
 
-**Milestone 8A goal:** reduce candidate set before exact distance verification:
+**Milestone 8A (current):** SQLite stays the default persistence layer. Coarse band + prefix buckets (`fingerprint_buckets` table, bloom filter for exact negatives) reduce candidates before L2 verification. No new servers, works offline.
 
-```
-Fingerprint → bucket key → candidate set (thousands) → exact L2 verification
-```
+**Milestone 8B (next):** Expand LSH-style neighbor bucket search and multi-level buckets for higher recall at scale.
 
-Target: keep scan latency flat or sub-linear as fingerprint count grows into millions, without introducing a separate server process.
+**Milestone 8C (later):** Pluggable FAISS/Qdrant/pgvector backends behind the same `SimilarityIndex` interface. Scanner unchanged.
+
+### Candidate counts (nearest neighbor, BucketedIndex)
+
+Typical candidate set size stays far below total fingerprints — L2 runs on hundreds of records, not millions.
+
+| Records | Avg candidates (approx.) | Candidate ratio |
+|---------|--------------------------|-----------------|
+| 10,000 | ~150–500 | &lt;5% |
+| 100,000 | ~500–2,000 | &lt;2% |
+
+Run `bench_similarity_search` to see `candidates` and `candidate_ratio` counters per configuration.
 
 ## Revision history
 
-| Milestone | Backend | 10K nearest | Notes |
-|-----------|---------|-------------|-------|
-| 7 | BruteForceIndex | ~730 µs | Initial baseline; linear O(n) |
-
-Update this table when Milestone 8A/8B backends land.
+| Milestone | Backend | 10K nearest | 100K nearest | Notes |
+|-----------|---------|-------------|--------------|-------|
+| 7 | BruteForceIndex | ~730 µs | ~7.5 ms | Linear O(n) baseline |
+| 8 | BucketedIndex | ~9.6 µs | ~327 µs | Band + prefix buckets, L2 verify |

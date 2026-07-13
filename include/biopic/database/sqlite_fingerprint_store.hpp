@@ -31,6 +31,8 @@ class PersistentFingerprintStore final : public FingerprintStore {
 
   private:
     [[nodiscard]] std::vector<FingerprintRecord> load_all_records() const;
+    [[nodiscard]] std::vector<FingerprintRecord> load_candidate_records(
+        const Fingerprint& fingerprint, const HashMatchConfig& config, bool for_nearest) const;
     [[nodiscard]] bool rebuild_similarity_index();
 
     struct Impl;

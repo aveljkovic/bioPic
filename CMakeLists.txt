@@ -50,7 +50,11 @@ target_sources(
           src/database/sqlite_fingerprint_store.cpp
           src/index/fingerprint_normalization.cpp
           src/index/similarity_index.cpp
-          src/index/hash_match_config.cpp)
+          src/index/hash_match_config.cpp
+          src/index/fingerprint_bucket.cpp
+          src/index/candidate_verification.cpp
+          src/index/fingerprint_bloom_filter.cpp
+          src/index/bucketed_index.cpp)
 
 target_include_directories(
   biopic_core
@@ -73,6 +77,7 @@ biopic_set_target_warnings(biopic_core)
 
 if(MSVC)
   target_compile_options(biopic_core PRIVATE /fp:precise)
+  target_compile_definitions(biopic_core PRIVATE NOMINMAX)
 else()
   target_compile_options(biopic_core PRIVATE -fno-fast-math -ffp-contract=off)
 endif()

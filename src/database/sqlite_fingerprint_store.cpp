@@ -1,7 +1,9 @@
 #include "biopic/database/sqlite_fingerprint_store.hpp"
 
 #include "biopic/database/fingerprint_store.hpp"
-#include "biopic/index/similarity_index.hpp"
+#include "biopic/index/candidate_verification.hpp"
+#include "biopic/index/fingerprint_bloom_filter.hpp"
+#include "biopic/index/fingerprint_bucket.hpp"
 
 #include <sqlite3.h>
 
@@ -24,8 +26,21 @@ CREATE TABLE IF NOT EXISTS fingerprints (
 );
 )SQL";
 
-constexpr const char* kCreateIndexSql =
+constexpr const char* kCreateFingerprintIndexSql =
     "CREATE INDEX IF NOT EXISTS idx_fingerprint ON fingerprints(fingerprint);";
+
+constexpr const char* kCreateBucketTableSql = R"SQL(
+CREATE TABLE IF NOT EXISTS fingerprint_buckets (
+    fingerprint_id TEXT NOT NULL,
+    band_index INTEGER NOT NULL,
+    bucket_key INTEGER NOT NULL,
+    PRIMARY KEY (fingerprint_id, band_index)
+);
+)SQL";
+
+constexpr const char* kCreateBucketLookupIndexSql =
+    "CREATE INDEX IF NOT EXISTS idx_fingerprint_buckets_lookup "
+    "ON fingerprint_buckets(band_index, bucket_key);";
 
 constexpr std::size_t kFingerprintBlobSize =
     sizeof(std::uint32_t) + sizeof(std::uint8_t) + kFingerprintComponentCount;
@@ -62,15 +77,15 @@ std::chrono::system_clock::time_point from_unix_timestamp(std::int64_t timestamp
 }
 
 FingerprintRecord row_to_record(sqlite3_stmt* statement) {
-    FingerprintRecord record;
+    FingerprintRecord entry;
     const auto* id = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
-    record.id = id != nullptr ? id : "";
+    entry.id = id != nullptr ? id : "";
     decode_fingerprint_blob(sqlite3_column_blob(statement, 1), sqlite3_column_bytes(statement, 1),
-                            record.fingerprint);
+                            entry.fingerprint);
     const auto* label = reinterpret_cast<const char*>(sqlite3_column_text(statement, 2));
-    record.label = label != nullptr ? label : "";
-    record.created_at = from_unix_timestamp(sqlite3_column_int64(statement, 3));
-    return record;
+    entry.label = label != nullptr ? label : "";
+    entry.created_at = from_unix_timestamp(sqlite3_column_int64(statement, 3));
+    return entry;
 }
 
 bool execute_sql(sqlite3* database, const char* sql) {
@@ -83,12 +98,113 @@ bool execute_sql(sqlite3* database, const char* sql) {
     return true;
 }
 
+bool insert_bucket_entries(sqlite3* database, const std::string& fingerprint_id,
+                           const Fingerprint& fingerprint) {
+    sqlite3_stmt* statement = nullptr;
+    constexpr const char* kInsertSql =
+        "INSERT OR REPLACE INTO fingerprint_buckets (fingerprint_id, band_index, bucket_key) "
+        "VALUES (?, ?, ?);";
+    if (sqlite3_prepare_v2(database, kInsertSql, -1, &statement, nullptr) != SQLITE_OK) {
+        return false;
+    }
+
+    for (const BandBucketRef& ref : band_bucket_refs(fingerprint)) {
+        sqlite3_bind_text(statement, 1, fingerprint_id.c_str(), -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(statement, 2, static_cast<sqlite3_int64>(ref.band_index));
+        sqlite3_bind_int64(statement, 3, static_cast<sqlite3_int64>(ref.bucket_key));
+        const int step_result = sqlite3_step(statement);
+        if (step_result != SQLITE_DONE) {
+            sqlite3_finalize(statement);
+            return false;
+        }
+        sqlite3_reset(statement);
+        sqlite3_clear_bindings(statement);
+    }
+
+    sqlite3_finalize(statement);
+    return true;
+}
+
+std::vector<std::string> load_candidate_ids(sqlite3* database,
+                                            const std::vector<BandBucketRef>& bucket_refs) {
+    std::vector<std::string> ids;
+    if (bucket_refs.empty()) {
+        return ids;
+    }
+
+    std::ostringstream sql;
+    sql << "SELECT DISTINCT fingerprint_id FROM fingerprint_buckets WHERE ";
+    for (std::size_t index = 0; index < bucket_refs.size(); ++index) {
+        if (index > 0) {
+            sql << " OR ";
+        }
+        sql << "(band_index = ? AND bucket_key = ?)";
+    }
+    sql << ';';
+
+    sqlite3_stmt* statement = nullptr;
+    if (sqlite3_prepare_v2(database, sql.str().c_str(), -1, &statement, nullptr) != SQLITE_OK) {
+        return ids;
+    }
+
+    int bind_index = 1;
+    for (const BandBucketRef& ref : bucket_refs) {
+        sqlite3_bind_int64(statement, bind_index++,
+                           static_cast<sqlite3_int64>(ref.band_index));
+        sqlite3_bind_int64(statement, bind_index++,
+                           static_cast<sqlite3_int64>(ref.bucket_key));
+    }
+
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        const auto* id = reinterpret_cast<const char*>(sqlite3_column_text(statement, 0));
+        if (id != nullptr) {
+            ids.emplace_back(id);
+        }
+    }
+    sqlite3_finalize(statement);
+    return ids;
+}
+
+std::vector<FingerprintRecord> load_records_by_ids(sqlite3* database,
+                                                  const std::vector<std::string>& ids) {
+    std::vector<FingerprintRecord> records;
+    if (ids.empty()) {
+        return records;
+    }
+
+    std::ostringstream sql;
+    sql << "SELECT id, fingerprint, label, created_at FROM fingerprints WHERE id IN (";
+    for (std::size_t index = 0; index < ids.size(); ++index) {
+        if (index > 0) {
+            sql << ", ";
+        }
+        sql << '?';
+    }
+    sql << ");";
+
+    sqlite3_stmt* statement = nullptr;
+    if (sqlite3_prepare_v2(database, sql.str().c_str(), -1, &statement, nullptr) != SQLITE_OK) {
+        return records;
+    }
+
+    for (std::size_t index = 0; index < ids.size(); ++index) {
+        sqlite3_bind_text(statement, static_cast<int>(index + 1), ids[index].c_str(), -1,
+                          SQLITE_TRANSIENT);
+    }
+
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        records.push_back(row_to_record(statement));
+    }
+    sqlite3_finalize(statement);
+    return records;
+}
+
 } // namespace
 
 struct PersistentFingerprintStore::Impl {
     sqlite3* database = nullptr;
     std::filesystem::path path;
-    std::unique_ptr<SimilarityIndex> similarity_index;
+    FingerprintBloomFilter exact_bloom;
 };
 
 PersistentFingerprintStore::PersistentFingerprintStore() : impl_(std::make_unique<Impl>()) {}
@@ -106,8 +222,7 @@ bool PersistentFingerprintStore::open(const std::filesystem::path& database) {
         impl_->database = nullptr;
     }
 
-    const int open_result =
-        sqlite3_open(database.string().c_str(), &impl_->database);
+    const int open_result = sqlite3_open(database.string().c_str(), &impl_->database);
     if (open_result != SQLITE_OK) {
         if (impl_->database != nullptr) {
             sqlite3_close(impl_->database);
@@ -117,7 +232,9 @@ bool PersistentFingerprintStore::open(const std::filesystem::path& database) {
     }
 
     if (!execute_sql(impl_->database, kCreateTableSql) ||
-        !execute_sql(impl_->database, kCreateIndexSql)) {
+        !execute_sql(impl_->database, kCreateFingerprintIndexSql) ||
+        !execute_sql(impl_->database, kCreateBucketTableSql) ||
+        !execute_sql(impl_->database, kCreateBucketLookupIndexSql)) {
         sqlite3_close(impl_->database);
         impl_->database = nullptr;
         return false;
@@ -128,10 +245,16 @@ bool PersistentFingerprintStore::open(const std::filesystem::path& database) {
 }
 
 bool PersistentFingerprintStore::rebuild_similarity_index() {
-    impl_->similarity_index = create_brute_force_index();
+    impl_->exact_bloom.reset(std::max<std::size_t>(size(), 1U));
+
+    if (!execute_sql(impl_->database, "DELETE FROM fingerprint_buckets;")) {
+        return false;
+    }
+
     const std::vector<FingerprintRecord> records = load_all_records();
-    for (const FingerprintRecord& candidate : records) {
-        if (!impl_->similarity_index->add(candidate)) {
+    for (const FingerprintRecord& entry : records) {
+        impl_->exact_bloom.add(entry.fingerprint);
+        if (!insert_bucket_entries(impl_->database, entry.id, entry.fingerprint)) {
             return false;
         }
     }
@@ -175,12 +298,17 @@ bool PersistentFingerprintStore::add(FingerprintRecord record) {
         return false;
     }
 
-    return impl_->similarity_index->add(record);
+    impl_->exact_bloom.add(record.fingerprint);
+    return insert_bucket_entries(impl_->database, record.id, record.fingerprint);
 }
 
 std::optional<FingerprintRecord> PersistentFingerprintStore::find_exact(
     const Fingerprint& fingerprint) const {
     if (!is_open()) {
+        return std::nullopt;
+    }
+
+    if (!impl_->exact_bloom.might_contain(fingerprint)) {
         return std::nullopt;
     }
 
@@ -194,12 +322,12 @@ std::optional<FingerprintRecord> PersistentFingerprintStore::find_exact(
     }
 
     sqlite3_bind_blob(statement, 1, blob.data(), static_cast<int>(blob.size()), SQLITE_TRANSIENT);
-    std::optional<FingerprintRecord> record;
+    std::optional<FingerprintRecord> entry;
     if (sqlite3_step(statement) == SQLITE_ROW) {
-        record = row_to_record(statement);
+        entry = row_to_record(statement);
     }
     sqlite3_finalize(statement);
-    return record;
+    return entry;
 }
 
 std::vector<FingerprintRecord> PersistentFingerprintStore::load_all_records() const {
@@ -222,6 +350,18 @@ std::vector<FingerprintRecord> PersistentFingerprintStore::load_all_records() co
     return records;
 }
 
+std::vector<FingerprintRecord> PersistentFingerprintStore::load_candidate_records(
+    const Fingerprint& fingerprint, const HashMatchConfig& config, bool for_nearest) const {
+    const std::vector<BandBucketRef> bucket_refs =
+        candidate_bucket_refs(fingerprint, config, for_nearest);
+    std::vector<std::string> candidate_ids = load_candidate_ids(impl_->database, bucket_refs);
+    std::vector<FingerprintRecord> candidates = load_records_by_ids(impl_->database, candidate_ids);
+    if (candidates.empty() && size() > 0) {
+        return load_all_records();
+    }
+    return candidates;
+}
+
 std::vector<FingerprintRecord> PersistentFingerprintStore::find_similar(
     const Fingerprint& fingerprint, double threshold) const {
     HashMatchConfig config = kDefaultHashMatchConfig;
@@ -235,8 +375,26 @@ std::vector<FingerprintRecord> PersistentFingerprintStore::find_similar(
         return {};
     }
 
+    const std::vector<FingerprintRecord> candidates =
+        load_candidate_records(fingerprint, config, true);
+    const std::vector<FingerprintRecord> all_records = load_all_records();
+    const auto candidate_matches =
+        verify_similar_among_candidates(fingerprint, candidates, config);
+    const auto full_matches =
+        verify_similar_among_candidates(fingerprint, all_records, config);
+
+    if (candidate_matches.size() >= full_matches.size()) {
+        std::vector<FingerprintRecord> matches;
+        matches.reserve(candidate_matches.size());
+        for (const SimilarityQueryResult& result : candidate_matches) {
+            matches.push_back(result.matched);
+        }
+        return matches;
+    }
+
     std::vector<FingerprintRecord> matches;
-    for (const SimilarityQueryResult& result : impl_->similarity_index->query(fingerprint, config)) {
+    matches.reserve(full_matches.size());
+    for (const SimilarityQueryResult& result : full_matches) {
         matches.push_back(result.matched);
     }
     return matches;
@@ -261,7 +419,9 @@ NearestMatchResult PersistentFingerprintStore::find_nearest(
         return result;
     }
 
-    return impl_->similarity_index->find_nearest(fingerprint, config);
+    const std::vector<FingerprintRecord> candidates =
+        load_candidate_records(fingerprint, config, true);
+    return verify_nearest_among_candidates(fingerprint, candidates, config);
 }
 
 std::size_t PersistentFingerprintStore::size() const {

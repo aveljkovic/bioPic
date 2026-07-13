@@ -47,7 +47,7 @@ NearestMatchResult find_nearest_among_records(const std::vector<FingerprintRecor
     return index.find_nearest(fingerprint, kDefaultHashMatchConfig);
 }
 
-InMemoryFingerprintStore::InMemoryFingerprintStore() : index_(create_brute_force_index()) {}
+InMemoryFingerprintStore::InMemoryFingerprintStore() : index_(create_default_similarity_index()) {}
 
 InMemoryFingerprintStore::~InMemoryFingerprintStore() = default;
 
