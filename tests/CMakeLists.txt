@@ -83,7 +83,7 @@ if(BIOPIC_BUILD_CLI)
     COMMAND ${CMAKE_COMMAND} -DBIOPIC_CLI=$<TARGET_FILE:biopic-cli>
             -DBIOPIC_IMAGE=${CLI_CLASSIFY_FIXTURE_PNG}
             -DBIOPIC_DATABASE=${CLI_PERSISTENCE_DATABASE} -P
-            ${CMAKE_CURRENT_SOURCE_DIR}/cmake/test_cli_database_persistence.cmake)
+            ${CMAKE_SOURCE_DIR}/cmake/test_cli_database_persistence.cmake)
   set_tests_properties(test_cli_database_persistence PROPERTIES RUN_SERIAL TRUE)
 endif()
 biopic_add_test(test_c_abi unit/test_c_abi.cpp)
