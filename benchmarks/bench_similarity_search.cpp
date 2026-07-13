@@ -32,10 +32,12 @@ static void BM_BruteForceNearest(benchmark::State& state) {
     biopic::BruteForceIndex index;
     populate_index(index, record_count);
 
-    const biopic::Fingerprint query = make_fingerprint(42);
+    biopic::Fingerprint query = make_fingerprint(42);
+    query.bytes[0] = static_cast<std::uint8_t>(query.bytes[0] + 1U);
     const biopic::HashMatchConfig config = biopic::kDefaultHashMatchConfig;
 
     for (auto _ : state) {
+        benchmark::ClobberMemory();
         const biopic::NearestMatchResult nearest = index.find_nearest(query, config);
         benchmark::DoNotOptimize(nearest.distance);
     }
@@ -55,6 +57,7 @@ static void BM_BruteForceSimilarQuery(benchmark::State& state) {
     config.threshold = 50.0;
 
     for (auto _ : state) {
+        benchmark::ClobberMemory();
         const auto results = index.query(query, config);
         benchmark::DoNotOptimize(results.size());
     }
