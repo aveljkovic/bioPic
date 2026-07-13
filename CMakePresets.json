@@ -52,6 +52,11 @@
         "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/cmake/triplets",
         "VCPKG_TARGET_TRIPLET": "x64-windows-release"
       }
+    },
+    {
+      "name": "windows-default",
+      "inherits": "windows-msvc",
+      "binaryDir": "${sourceDir}/build/default"
     }
   ],
   "buildPresets": [
@@ -70,6 +75,11 @@
     {
       "name": "windows-msvc",
       "configurePreset": "windows-msvc",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-default",
+      "configurePreset": "windows-default",
       "configuration": "Release"
     }
   ],

@@ -25,7 +25,7 @@ DummyClassifier::DummyClassifier(ClassifierKind kind)
     : kind_(kind),
       model_(Model::placeholder("dummy-" + classifier_kind_to_string(kind))),
       preprocessor_(model_.input_requirements()) {
-    model_.load();
+    (void)model_.load();
 }
 
 ClassifierKind DummyClassifier::kind() const { return kind_; }

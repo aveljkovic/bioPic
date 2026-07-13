@@ -149,7 +149,7 @@ bool OnnxInferenceSession::load() {
         }
 
         impl_->loaded = true;
-        impl_->model.load();
+        (void)impl_->model.load();
         return true;
     } catch (const Ort::Exception& exception) {
         impl_->last_error = exception.what();

@@ -2,9 +2,10 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
 #include <fstream>
 #include <sstream>
+
+#include "biopic/env.hpp"
 
 namespace biopic {
 
@@ -113,11 +114,11 @@ std::optional<ClassifierConfig> ClassifierConfig::load_from_file(
 }
 
 std::optional<ClassifierConfig> ClassifierConfig::from_environment() {
-    const char* config_path = std::getenv("BIOPIC_CLASSIFIER_CONFIG");
-    if (config_path == nullptr || config_path[0] == '\0') {
+    const auto config_path = read_env_variable("BIOPIC_CLASSIFIER_CONFIG");
+    if (!config_path.has_value()) {
         return std::nullopt;
     }
-    return load_from_file(config_path);
+    return load_from_file(*config_path);
 }
 
 std::unique_ptr<IClassifier> create_classifier(const ClassifierConfig& config,

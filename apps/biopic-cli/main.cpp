@@ -1,10 +1,10 @@
 #include "biopic/ai/classifier_config.hpp"
 #include "biopic/distance.hpp"
+#include "biopic/env.hpp"
 #include "biopic/fingerprint.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
 
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -80,9 +80,9 @@ std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** 
         }
     }
 
-    const char* config_from_env = std::getenv("BIOPIC_CLASSIFIER_CONFIG");
-    if (config_from_env != nullptr && config_from_env[0] != '\0') {
-        return std::filesystem::path(config_from_env);
+    const auto config_from_env = biopic::read_env_variable("BIOPIC_CLASSIFIER_CONFIG");
+    if (config_from_env.has_value()) {
+        return std::filesystem::path(*config_from_env);
     }
     return std::nullopt;
 }

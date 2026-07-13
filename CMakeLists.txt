@@ -17,9 +17,11 @@ option(BIOPIC_BUILD_C_ABI "Build stable C ABI shared library" ON)
 option(BIOPIC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(ReleaseOnlyTriplet)
 include(CompilerWarnings)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
+biopic_enforce_release_only_dependencies()
 find_package(onnxruntime CONFIG REQUIRED)
 
 add_library(biopic_core STATIC)
@@ -54,7 +56,10 @@ target_compile_definitions(
          BIOPIC_VERSION_MINOR=${PROJECT_VERSION_MINOR}
          BIOPIC_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 
-target_link_libraries(biopic_core PUBLIC ${OpenCV_LIBS} PRIVATE onnxruntime::onnxruntime)
+target_link_libraries(
+  biopic_core
+  PUBLIC opencv_core opencv_imgcodecs opencv_imgproc
+  PRIVATE onnxruntime::onnxruntime)
 
 biopic_set_target_warnings(biopic_core)
 
