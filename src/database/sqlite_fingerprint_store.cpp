@@ -1,6 +1,7 @@
 #include "biopic/database/sqlite_fingerprint_store.hpp"
 
 #include "biopic/database/fingerprint_store.hpp"
+#include "biopic/index/similarity_index.hpp"
 
 #include <sqlite3.h>
 
@@ -87,6 +88,7 @@ bool execute_sql(sqlite3* database, const char* sql) {
 struct PersistentFingerprintStore::Impl {
     sqlite3* database = nullptr;
     std::filesystem::path path;
+    std::unique_ptr<SimilarityIndex> similarity_index;
 };
 
 PersistentFingerprintStore::PersistentFingerprintStore() : impl_(std::make_unique<Impl>()) {}
@@ -122,6 +124,17 @@ bool PersistentFingerprintStore::open(const std::filesystem::path& database) {
     }
 
     impl_->path = database;
+    return rebuild_similarity_index();
+}
+
+bool PersistentFingerprintStore::rebuild_similarity_index() {
+    impl_->similarity_index = create_brute_force_index();
+    const std::vector<FingerprintRecord> records = load_all_records();
+    for (const FingerprintRecord& candidate : records) {
+        if (!impl_->similarity_index->add(candidate)) {
+            return false;
+        }
+    }
     return true;
 }
 
@@ -158,7 +171,11 @@ bool PersistentFingerprintStore::add(FingerprintRecord record) {
 
     const int step_result = sqlite3_step(statement);
     sqlite3_finalize(statement);
-    return step_result == SQLITE_DONE;
+    if (step_result != SQLITE_DONE) {
+        return false;
+    }
+
+    return impl_->similarity_index->add(record);
 }
 
 std::optional<FingerprintRecord> PersistentFingerprintStore::find_exact(
@@ -207,11 +224,31 @@ std::vector<FingerprintRecord> PersistentFingerprintStore::load_all_records() co
 
 std::vector<FingerprintRecord> PersistentFingerprintStore::find_similar(
     const Fingerprint& fingerprint, double threshold) const {
-    return find_similar_among_records(load_all_records(), fingerprint, threshold);
+    HashMatchConfig config = kDefaultHashMatchConfig;
+    config.threshold = threshold;
+    return find_similar(fingerprint, config);
+}
+
+std::vector<FingerprintRecord> PersistentFingerprintStore::find_similar(
+    const Fingerprint& fingerprint, const HashMatchConfig& config) const {
+    if (!is_open()) {
+        return {};
+    }
+
+    std::vector<FingerprintRecord> matches;
+    for (const SimilarityQueryResult& result : impl_->similarity_index->query(fingerprint, config)) {
+        matches.push_back(result.matched);
+    }
+    return matches;
 }
 
 NearestMatchResult PersistentFingerprintStore::find_nearest(
     const Fingerprint& fingerprint) const {
+    return find_nearest(fingerprint, kDefaultHashMatchConfig);
+}
+
+NearestMatchResult PersistentFingerprintStore::find_nearest(
+    const Fingerprint& fingerprint, const HashMatchConfig& config) const {
     if (!is_open()) {
         return {};
     }
@@ -224,7 +261,7 @@ NearestMatchResult PersistentFingerprintStore::find_nearest(
         return result;
     }
 
-    return find_nearest_among_records(load_all_records(), fingerprint);
+    return impl_->similarity_index->find_nearest(fingerprint, config);
 }
 
 std::size_t PersistentFingerprintStore::size() const {

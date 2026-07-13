@@ -97,6 +97,28 @@ TEST(ScannerTest, ScanFileDecodesOnceAndReturnsFingerprint) {
     EXPECT_EQ(result->match_status, biopic::MatchStatus::NoMatch);
 }
 
+TEST(ScannerTest, SimilarDatabaseMatchUsesSingleNearestLookup) {
+    const auto image = biopic::test_support::make_uniform_rgb(16, 16, 90, 45, 20);
+    biopic::ImageView view(image.width, image.height, image.rgb);
+
+    biopic::Hasher hasher;
+    biopic::InMemoryFingerprintStore store;
+    biopic::FingerprintRecord record;
+    record.fingerprint = hasher.compute(view);
+    record.fingerprint.bytes[0] = static_cast<std::uint8_t>(record.fingerprint.bytes[0] + 1U);
+    record.label = "near_match";
+    ASSERT_TRUE(store.add(record));
+
+    biopic::HashMatchConfig match_config = biopic::kDefaultHashMatchConfig;
+    match_config.threshold = 5.0;
+
+    const biopic::ScanResult result = biopic::scan(view, &store, std::nullopt, match_config);
+    EXPECT_EQ(result.match_status, biopic::MatchStatus::SimilarMatch);
+    ASSERT_TRUE(result.matched_record.has_value());
+    EXPECT_EQ(result.matched_record->label, "near_match");
+    EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Allow);
+}
+
 TEST(ScannerTest, ExactDatabaseMatchBlocksWithoutClassifier) {
     const auto image = biopic::test_support::make_uniform_rgb(16, 16, 90, 45, 20);
     biopic::ImageView view(image.width, image.height, image.rgb);

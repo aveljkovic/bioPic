@@ -3,18 +3,20 @@
 #include "biopic/ai/classifier_config.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
+#include "biopic/index/fingerprint_normalization.hpp"
 
 namespace biopic {
 
 namespace {
 
-void apply_database_lookup(ScanResult& result, const FingerprintStore* store) {
+void apply_database_lookup(ScanResult& result, const FingerprintStore* store,
+                           const HashMatchConfig& match_config) {
     if (store == nullptr) {
         result.match_status = MatchStatus::NoMatch;
         return;
     }
 
-    const NearestMatchResult nearest = store->find_nearest(result.fingerprint);
+    const NearestMatchResult nearest = store->find_nearest(result.fingerprint, match_config);
     result.nearest_distance = nearest.distance;
 
     if (nearest.exact_match && nearest.record.has_value()) {
@@ -23,11 +25,10 @@ void apply_database_lookup(ScanResult& result, const FingerprintStore* store) {
         return;
     }
 
-    const auto similar =
-        store->find_similar(result.fingerprint, kDefaultSimilarityThreshold);
-    if (!similar.empty()) {
+    if (nearest.record.has_value() &&
+        is_within_similarity_threshold(nearest.distance, match_config)) {
         result.match_status = MatchStatus::SimilarMatch;
-        result.matched_record = similar.front();
+        result.matched_record = nearest.record;
         return;
     }
 
@@ -36,11 +37,12 @@ void apply_database_lookup(ScanResult& result, const FingerprintStore* store) {
 
 ScanResult scan_with_optional_classifier(const ImageView& image,
                                         const std::optional<std::filesystem::path>& config_path,
-                                        const FingerprintStore* store) {
+                                        const FingerprintStore* store,
+                                        const HashMatchConfig& match_config) {
     Hasher hasher;
     ScanResult result;
     result.fingerprint = hasher.compute(image);
-    apply_database_lookup(result, store);
+    apply_database_lookup(result, store, match_config);
 
     if (result.match_status == MatchStatus::ExactMatch) {
         result.classifier_availability = ClassifierAvailability::Skipped;
@@ -78,7 +80,8 @@ ScanResult scan_with_optional_classifier(const ImageView& image,
 
 std::optional<ScanResult> scan_file(const std::filesystem::path& image_path,
                                     const FingerprintStore* store,
-                                    const std::optional<std::filesystem::path>& config_path) {
+                                    const std::optional<std::filesystem::path>& config_path,
+                                    const HashMatchConfig& match_config) {
     ImageDecoder decoder;
     const auto decoded = decoder.decode_file(image_path.string());
     if (!decoded.has_value()) {
@@ -86,19 +89,21 @@ std::optional<ScanResult> scan_file(const std::filesystem::path& image_path,
     }
 
     const ImageView view(decoded->width, decoded->height, decoded->rgb);
-    return scan(view, store, config_path);
+    return scan(view, store, config_path, match_config);
 }
 
 ScanResult scan(const ImageView& image, const FingerprintStore* store,
-                const std::optional<std::filesystem::path>& config_path) {
-    return scan_with_optional_classifier(image, config_path, store);
+                const std::optional<std::filesystem::path>& config_path,
+                const HashMatchConfig& match_config) {
+    return scan_with_optional_classifier(image, config_path, store, match_config);
 }
 
-ScanResult scan(const ImageView& image, IClassifier& classifier, const FingerprintStore* store) {
+ScanResult scan(const ImageView& image, IClassifier& classifier, const FingerprintStore* store,
+                const HashMatchConfig& match_config) {
     Hasher hasher;
     ScanResult result;
     result.fingerprint = hasher.compute(image);
-    apply_database_lookup(result, store);
+    apply_database_lookup(result, store, match_config);
 
     if (result.match_status == MatchStatus::ExactMatch) {
         result.classifier_availability = ClassifierAvailability::Skipped;

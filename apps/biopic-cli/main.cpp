@@ -5,8 +5,10 @@
 #include "biopic/fingerprint.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
+#include "biopic/index/hash_match_config.hpp"
 #include "pipeline/scanner.hpp"
 
+#include <charconv>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -22,9 +24,11 @@ void print_usage() {
               << "  biopic hash IMAGE\n"
               << "  biopic compare IMAGE_A IMAGE_B\n"
               << "  biopic classify IMAGE [--config CONFIG]\n"
-              << "  biopic scan IMAGE [--database PATH] [--config CONFIG]\n"
+              << "  biopic scan IMAGE [--database PATH] [--config CONFIG] [--threshold N] "
+                 "[--metric l1|l2|l2_squared]\n"
               << "  biopic database add IMAGE --label LABEL --database PATH\n"
-              << "  biopic database search IMAGE --database PATH\n";
+              << "  biopic database search IMAGE --database PATH [--threshold N] "
+                 "[--metric l1|l2|l2_squared]\n";
 }
 
 std::optional<std::filesystem::path> parse_path_flag(int argc, char** argv,
@@ -55,6 +59,37 @@ std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** 
 std::optional<std::filesystem::path> resolve_database_path(int argc, char** argv,
                                                            int start_index = 3) {
     return parse_path_flag(argc, argv, "--database", start_index);
+}
+
+std::optional<double> parse_threshold_flag(int argc, char** argv, int start_index = 3) {
+    const auto threshold = parse_path_flag(argc, argv, "--threshold", start_index);
+    if (!threshold.has_value()) {
+        return std::nullopt;
+    }
+
+    const std::string value = threshold->string();
+    double parsed = 0.0;
+    const auto* begin = value.data();
+    const auto* end = begin + value.size();
+    const auto result = std::from_chars(begin, end, parsed);
+    if (result.ec != std::errc() || result.ptr != end) {
+        return std::nullopt;
+    }
+    return parsed;
+}
+
+std::optional<biopic::DistanceMetric> parse_metric_flag(int argc, char** argv,
+                                                        int start_index = 3) {
+    const auto metric = parse_path_flag(argc, argv, "--metric", start_index);
+    if (!metric.has_value()) {
+        return std::nullopt;
+    }
+    return biopic::parse_distance_metric(metric->string());
+}
+
+biopic::HashMatchConfig resolve_match_config(int argc, char** argv, int start_index = 3) {
+    return biopic::resolve_hash_match_config(parse_threshold_flag(argc, argv, start_index),
+                                             parse_metric_flag(argc, argv, start_index));
 }
 
 std::unique_ptr<biopic::FingerprintStore> open_database_store(
@@ -180,7 +215,8 @@ int classify_image(const std::filesystem::path& path,
 
 int scan_image(const std::filesystem::path& path,
                const std::optional<std::filesystem::path>& database_path,
-               const std::optional<std::filesystem::path>& config_path) {
+               const std::optional<std::filesystem::path>& config_path,
+               const biopic::HashMatchConfig& match_config) {
     std::unique_ptr<biopic::FingerprintStore> owned_store;
     const biopic::FingerprintStore* store = nullptr;
     if (database_path.has_value()) {
@@ -191,7 +227,7 @@ int scan_image(const std::filesystem::path& path,
         store = owned_store.get();
     }
 
-    const auto result = biopic::scan_file(path, store, config_path);
+    const auto result = biopic::scan_file(path, store, config_path, match_config);
     if (!result.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
         return 1;
@@ -265,7 +301,8 @@ int database_add(const std::filesystem::path& path, const std::string& label,
 }
 
 int database_search(const std::filesystem::path& path,
-                    const std::filesystem::path& database_path) {
+                    const std::filesystem::path& database_path,
+                    const biopic::HashMatchConfig& match_config) {
     const auto fingerprint = fingerprint_from_image(path);
     if (!fingerprint.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
@@ -277,7 +314,7 @@ int database_search(const std::filesystem::path& path,
         return 1;
     }
 
-    const biopic::NearestMatchResult nearest = store->find_nearest(*fingerprint);
+    const biopic::NearestMatchResult nearest = store->find_nearest(*fingerprint, match_config);
 
     std::cout << "Match:\n" << (nearest.exact_match ? "true" : "false") << "\n\n";
     std::cout << std::fixed << std::setprecision(6);
@@ -305,7 +342,7 @@ int main(int argc, char** argv) {
     }
     if (command == "scan" && argc >= 3) {
         return scan_image(argv[2], resolve_database_path(argc, argv),
-                        resolve_classifier_config(argc, argv));
+                        resolve_classifier_config(argc, argv), resolve_match_config(argc, argv));
     }
     if (command == "database" && argc >= 4) {
         const std::string subcommand = argv[2];
@@ -331,7 +368,7 @@ int main(int argc, char** argv) {
                 print_usage();
                 return 1;
             }
-            return database_search(argv[3], *database_path);
+            return database_search(argv[3], *database_path, resolve_match_config(argc, argv, 4));
         }
     }
 

@@ -47,7 +47,10 @@ target_sources(
           src/ai/tensor_contract.cpp
           src/pipeline/scanner.cpp
           src/database/fingerprint_store.cpp
-          src/database/sqlite_fingerprint_store.cpp)
+          src/database/sqlite_fingerprint_store.cpp
+          src/index/fingerprint_normalization.cpp
+          src/index/similarity_index.cpp
+          src/index/hash_match_config.cpp)
 
 target_include_directories(
   biopic_core

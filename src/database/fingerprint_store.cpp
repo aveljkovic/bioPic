@@ -1,19 +1,22 @@
 #include "biopic/database/fingerprint_store.hpp"
 
-#include "biopic/distance.hpp"
+#include "biopic/index/similarity_index.hpp"
 
-#include <algorithm>
-#include <limits>
 #include <sstream>
 
 namespace biopic {
 
 namespace {
 
-struct RankedRecord {
-    FingerprintRecord record;
-    double distance = 0.0;
-};
+std::vector<FingerprintRecord> records_from_query_results(
+    const std::vector<SimilarityQueryResult>& results) {
+    std::vector<FingerprintRecord> records;
+    records.reserve(results.size());
+    for (const SimilarityQueryResult& result : results) {
+        records.push_back(result.matched);
+    }
+    return records;
+}
 
 } // namespace
 
@@ -25,60 +28,28 @@ bool fingerprints_equal(const Fingerprint& left, const Fingerprint& right) {
 std::vector<FingerprintRecord> find_similar_among_records(
     const std::vector<FingerprintRecord>& records, const Fingerprint& fingerprint,
     double threshold) {
-    std::vector<RankedRecord> ranked;
-    ranked.reserve(records.size());
-
-    for (const FingerprintRecord& record : records) {
-        const double distance = l2_distance(fingerprint.bytes, record.fingerprint.bytes);
-        if (distance <= threshold) {
-            ranked.push_back(RankedRecord{record, distance});
-        }
+    BruteForceIndex index;
+    for (const FingerprintRecord& entry : records) {
+        index.add(entry);
     }
 
-    std::sort(ranked.begin(), ranked.end(),
-              [](const RankedRecord& left, const RankedRecord& right) {
-                  return left.distance < right.distance;
-              });
-
-    std::vector<FingerprintRecord> matches;
-    matches.reserve(ranked.size());
-    for (const RankedRecord& entry : ranked) {
-        matches.push_back(entry.record);
-    }
-    return matches;
+    HashMatchConfig config = kDefaultHashMatchConfig;
+    config.threshold = threshold;
+    return records_from_query_results(index.query(fingerprint, config));
 }
 
 NearestMatchResult find_nearest_among_records(const std::vector<FingerprintRecord>& records,
                                               const Fingerprint& fingerprint) {
-    NearestMatchResult result;
-    if (records.empty()) {
-        return result;
+    BruteForceIndex index;
+    for (const FingerprintRecord& entry : records) {
+        index.add(entry);
     }
-
-    for (const FingerprintRecord& record : records) {
-        if (fingerprints_equal(record.fingerprint, fingerprint)) {
-            result.exact_match = true;
-            result.distance = 0.0;
-            result.record = record;
-            return result;
-        }
-    }
-
-    double best_distance = std::numeric_limits<double>::infinity();
-    std::optional<FingerprintRecord> best_record;
-    for (const FingerprintRecord& record : records) {
-        const double distance = l2_distance(fingerprint.bytes, record.fingerprint.bytes);
-        if (distance < best_distance) {
-            best_distance = distance;
-            best_record = record;
-        }
-    }
-
-    result.exact_match = false;
-    result.distance = best_distance;
-    result.record = best_record;
-    return result;
+    return index.find_nearest(fingerprint, kDefaultHashMatchConfig);
 }
+
+InMemoryFingerprintStore::InMemoryFingerprintStore() : index_(create_brute_force_index()) {}
+
+InMemoryFingerprintStore::~InMemoryFingerprintStore() = default;
 
 std::string InMemoryFingerprintStore::generate_id() {
     std::ostringstream stream;
@@ -93,27 +64,41 @@ bool InMemoryFingerprintStore::add(FingerprintRecord record) {
     if (record.label.empty()) {
         return false;
     }
-    records_.push_back(std::move(record));
-    return true;
+    return index_->add(record);
 }
 
 std::optional<FingerprintRecord> InMemoryFingerprintStore::find_exact(
     const Fingerprint& fingerprint) const {
-    for (const FingerprintRecord& record : records_) {
-        if (fingerprints_equal(record.fingerprint, fingerprint)) {
-            return record;
-        }
+    const NearestMatchResult nearest = index_->find_nearest(fingerprint, kDefaultHashMatchConfig);
+    if (nearest.exact_match && nearest.record.has_value()) {
+        return nearest.record;
     }
     return std::nullopt;
 }
 
 std::vector<FingerprintRecord> InMemoryFingerprintStore::find_similar(
     const Fingerprint& fingerprint, double threshold) const {
-    return find_similar_among_records(records_, fingerprint, threshold);
+    HashMatchConfig config = kDefaultHashMatchConfig;
+    config.threshold = threshold;
+    return find_similar(fingerprint, config);
+}
+
+std::vector<FingerprintRecord> InMemoryFingerprintStore::find_similar(
+    const Fingerprint& fingerprint, const HashMatchConfig& config) const {
+    return records_from_query_results(index_->query(fingerprint, config));
 }
 
 NearestMatchResult InMemoryFingerprintStore::find_nearest(const Fingerprint& fingerprint) const {
-    return find_nearest_among_records(records_, fingerprint);
+    return find_nearest(fingerprint, kDefaultHashMatchConfig);
+}
+
+NearestMatchResult InMemoryFingerprintStore::find_nearest(
+    const Fingerprint& fingerprint, const HashMatchConfig& config) const {
+    return index_->find_nearest(fingerprint, config);
+}
+
+std::size_t InMemoryFingerprintStore::size() const noexcept {
+    return index_->size();
 }
 
 } // namespace biopic
