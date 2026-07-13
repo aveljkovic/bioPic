@@ -4,6 +4,7 @@
 #include "biopic/fingerprint.hpp"
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
+#include "pipeline/scanner.hpp"
 
 #include <filesystem>
 #include <iostream>
@@ -16,7 +17,8 @@ void print_usage() {
     std::cerr << "Usage:\n"
               << "  biopic hash IMAGE\n"
               << "  biopic compare IMAGE_A IMAGE_B\n"
-              << "  biopic classify IMAGE [--config CONFIG]\n";
+              << "  biopic classify IMAGE [--config CONFIG]\n"
+              << "  biopic scan IMAGE [--config CONFIG]\n";
 }
 
 int hash_image(const std::filesystem::path& path) {
@@ -124,6 +126,35 @@ int classify_image(const std::filesystem::path& path,
     return 0;
 }
 
+int scan_image(const std::filesystem::path& path,
+               const std::optional<std::filesystem::path>& config_path) {
+    const auto result = biopic::scan_file(path, config_path);
+    if (!result.has_value()) {
+        std::cerr << "Failed to decode image: " << path << '\n';
+        return 1;
+    }
+
+    const biopic::ModerationDecision decision = biopic::scan_decision(*result);
+
+    std::cout << "BioPic Scan\n\n";
+    std::cout << "Image:\n" << path.string() << "\n\n";
+    std::cout << "Fingerprint:\n";
+    std::cout << "  Algorithm: biopic\n";
+    std::cout << "  Version: " << result->fingerprint.version << '\n';
+    std::cout << "  Status: generated\n\n";
+    std::cout << "Classifier:\n";
+    std::cout << "  Status: " << result->classifier_status << '\n';
+    if (result->classification.has_value()) {
+        std::cout << "  Label: " << result->classification->label << '\n';
+        std::cout << "  Confidence: " << result->classification->confidence << '\n';
+        std::cout << "  Detection: " << (result->classification->detected ? "true" : "false")
+                  << '\n';
+    }
+    std::cout << "\nDecision:\n";
+    std::cout << "  " << biopic::scan_decision_label(decision) << '\n';
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -141,6 +172,9 @@ int main(int argc, char** argv) {
     }
     if (command == "classify" && argc >= 3) {
         return classify_image(argv[2], resolve_classifier_config(argc, argv));
+    }
+    if (command == "scan" && argc >= 3) {
+        return scan_image(argv[2], resolve_classifier_config(argc, argv));
     }
 
     print_usage();

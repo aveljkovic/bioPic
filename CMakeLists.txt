@@ -43,11 +43,13 @@ target_sources(
           src/ai/output_mapping.cpp
           src/ai/preprocessing.cpp
           src/ai/runtime.cpp
-          src/ai/tensor_contract.cpp)
+          src/ai/tensor_contract.cpp
+          src/pipeline/scanner.cpp)
 
 target_include_directories(
   biopic_core
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
          $<INSTALL_INTERFACE:include>)
 
 target_compile_definitions(
