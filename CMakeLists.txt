@@ -23,6 +23,7 @@ include(CompilerWarnings)
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
 biopic_enforce_release_only_dependencies()
 find_package(onnxruntime CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 
 add_library(biopic_core STATIC)
 add_library(biopic::core ALIAS biopic_core)
@@ -45,7 +46,8 @@ target_sources(
           src/ai/runtime.cpp
           src/ai/tensor_contract.cpp
           src/pipeline/scanner.cpp
-          src/database/fingerprint_store.cpp)
+          src/database/fingerprint_store.cpp
+          src/database/sqlite_fingerprint_store.cpp)
 
 target_include_directories(
   biopic_core
@@ -62,7 +64,7 @@ target_compile_definitions(
 target_link_libraries(
   biopic_core
   PUBLIC opencv_core opencv_imgcodecs opencv_imgproc
-  PRIVATE onnxruntime::onnxruntime)
+  PRIVATE onnxruntime::onnxruntime unofficial::sqlite3::sqlite3)
 
 biopic_set_target_warnings(biopic_core)
 

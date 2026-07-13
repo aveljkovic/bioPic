@@ -22,41 +22,14 @@ bool fingerprints_equal(const Fingerprint& left, const Fingerprint& right) {
            left.bytes == right.bytes;
 }
 
-std::string FingerprintStore::generate_id() {
-    std::ostringstream stream;
-    stream << std::hex << next_id_++;
-    return stream.str();
-}
-
-bool FingerprintStore::add(FingerprintRecord record) {
-    if (record.id.empty()) {
-        record.id = generate_id();
-    }
-    if (record.label.empty()) {
-        return false;
-    }
-    records_.push_back(std::move(record));
-    return true;
-}
-
-std::optional<FingerprintRecord> FingerprintStore::find_exact(
-    const Fingerprint& fingerprint) const {
-    for (const FingerprintRecord& record : records_) {
-        if (fingerprints_equal(record.fingerprint, fingerprint)) {
-            return record;
-        }
-    }
-    return std::nullopt;
-}
-
-std::vector<FingerprintRecord> FingerprintStore::find_similar(const Fingerprint& fingerprint,
-                                                              double threshold) const {
+std::vector<FingerprintRecord> find_similar_among_records(
+    const std::vector<FingerprintRecord>& records, const Fingerprint& fingerprint,
+    double threshold) {
     std::vector<RankedRecord> ranked;
-    ranked.reserve(records_.size());
+    ranked.reserve(records.size());
 
-    for (const FingerprintRecord& record : records_) {
-        const double distance =
-            l2_distance(fingerprint.bytes, record.fingerprint.bytes);
+    for (const FingerprintRecord& record : records) {
+        const double distance = l2_distance(fingerprint.bytes, record.fingerprint.bytes);
         if (distance <= threshold) {
             ranked.push_back(RankedRecord{record, distance});
         }
@@ -75,24 +48,26 @@ std::vector<FingerprintRecord> FingerprintStore::find_similar(const Fingerprint&
     return matches;
 }
 
-NearestMatchResult FingerprintStore::find_nearest(const Fingerprint& fingerprint) const {
+NearestMatchResult find_nearest_among_records(const std::vector<FingerprintRecord>& records,
+                                              const Fingerprint& fingerprint) {
     NearestMatchResult result;
-    if (records_.empty()) {
+    if (records.empty()) {
         return result;
     }
 
-    if (const auto exact = find_exact(fingerprint); exact.has_value()) {
-        result.exact_match = true;
-        result.distance = 0.0;
-        result.record = exact;
-        return result;
+    for (const FingerprintRecord& record : records) {
+        if (fingerprints_equal(record.fingerprint, fingerprint)) {
+            result.exact_match = true;
+            result.distance = 0.0;
+            result.record = record;
+            return result;
+        }
     }
 
     double best_distance = std::numeric_limits<double>::infinity();
     std::optional<FingerprintRecord> best_record;
-    for (const FingerprintRecord& record : records_) {
-        const double distance =
-            l2_distance(fingerprint.bytes, record.fingerprint.bytes);
+    for (const FingerprintRecord& record : records) {
+        const double distance = l2_distance(fingerprint.bytes, record.fingerprint.bytes);
         if (distance < best_distance) {
             best_distance = distance;
             best_record = record;
@@ -105,9 +80,40 @@ NearestMatchResult FingerprintStore::find_nearest(const Fingerprint& fingerprint
     return result;
 }
 
-FingerprintStore& shared_fingerprint_store() {
-    static FingerprintStore store;
-    return store;
+std::string InMemoryFingerprintStore::generate_id() {
+    std::ostringstream stream;
+    stream << std::hex << next_id_++;
+    return stream.str();
+}
+
+bool InMemoryFingerprintStore::add(FingerprintRecord record) {
+    if (record.id.empty()) {
+        record.id = generate_id();
+    }
+    if (record.label.empty()) {
+        return false;
+    }
+    records_.push_back(std::move(record));
+    return true;
+}
+
+std::optional<FingerprintRecord> InMemoryFingerprintStore::find_exact(
+    const Fingerprint& fingerprint) const {
+    for (const FingerprintRecord& record : records_) {
+        if (fingerprints_equal(record.fingerprint, fingerprint)) {
+            return record;
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<FingerprintRecord> InMemoryFingerprintStore::find_similar(
+    const Fingerprint& fingerprint, double threshold) const {
+    return find_similar_among_records(records_, fingerprint, threshold);
+}
+
+NearestMatchResult InMemoryFingerprintStore::find_nearest(const Fingerprint& fingerprint) const {
+    return find_nearest_among_records(records_, fingerprint);
 }
 
 } // namespace biopic

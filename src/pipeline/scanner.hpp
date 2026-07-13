@@ -36,13 +36,11 @@ struct ScanResult {
 };
 
 [[nodiscard]] std::optional<ScanResult> scan_file(
-    const std::filesystem::path& image_path,
-    const std::optional<std::filesystem::path>& config_path = std::nullopt,
-    const FingerprintStore* store = nullptr);
+    const std::filesystem::path& image_path, const FingerprintStore* store = nullptr,
+    const std::optional<std::filesystem::path>& config_path = std::nullopt);
 
-[[nodiscard]] ScanResult scan(const ImageView& image,
-                            const std::optional<std::filesystem::path>& config_path = std::nullopt,
-                            const FingerprintStore* store = nullptr);
+[[nodiscard]] ScanResult scan(const ImageView& image, const FingerprintStore* store = nullptr,
+                            const std::optional<std::filesystem::path>& config_path = std::nullopt);
 
 [[nodiscard]] ScanResult scan(const ImageView& image, IClassifier& classifier,
                             const FingerprintStore* store = nullptr);

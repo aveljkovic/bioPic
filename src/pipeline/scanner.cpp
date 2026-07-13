@@ -77,8 +77,8 @@ ScanResult scan_with_optional_classifier(const ImageView& image,
 } // namespace
 
 std::optional<ScanResult> scan_file(const std::filesystem::path& image_path,
-                                    const std::optional<std::filesystem::path>& config_path,
-                                    const FingerprintStore* store) {
+                                    const FingerprintStore* store,
+                                    const std::optional<std::filesystem::path>& config_path) {
     ImageDecoder decoder;
     const auto decoded = decoder.decode_file(image_path.string());
     if (!decoded.has_value()) {
@@ -86,12 +86,11 @@ std::optional<ScanResult> scan_file(const std::filesystem::path& image_path,
     }
 
     const ImageView view(decoded->width, decoded->height, decoded->rgb);
-    return scan(view, config_path, store);
+    return scan(view, store, config_path);
 }
 
-ScanResult scan(const ImageView& image,
-                const std::optional<std::filesystem::path>& config_path,
-                const FingerprintStore* store) {
+ScanResult scan(const ImageView& image, const FingerprintStore* store,
+                const std::optional<std::filesystem::path>& config_path) {
     return scan_with_optional_classifier(image, config_path, store);
 }
 

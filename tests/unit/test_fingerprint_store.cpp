@@ -19,7 +19,7 @@ biopic::Fingerprint make_fingerprint(int width, int height, std::uint8_t red, st
 } // namespace
 
 TEST(FingerprintStoreTest, StoreAndRetrieveFingerprint) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     const biopic::Fingerprint fingerprint = make_fingerprint(16, 16, 200, 100, 50);
 
     biopic::FingerprintRecord record;
@@ -36,7 +36,7 @@ TEST(FingerprintStoreTest, StoreAndRetrieveFingerprint) {
 }
 
 TEST(FingerprintStoreTest, ExactMatchDetection) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     const biopic::Fingerprint fingerprint = make_fingerprint(8, 8, 255, 0, 0);
 
     biopic::FingerprintRecord record;
@@ -52,7 +52,7 @@ TEST(FingerprintStoreTest, ExactMatchDetection) {
 }
 
 TEST(FingerprintStoreTest, SimilarFingerprintDetection) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     biopic::Fingerprint reference;
     reference.bytes.fill(100);
     biopic::Fingerprint query = reference;
@@ -70,7 +70,7 @@ TEST(FingerprintStoreTest, SimilarFingerprintDetection) {
 }
 
 TEST(FingerprintStoreTest, EmptyDatabaseBehavior) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     const biopic::Fingerprint fingerprint = make_fingerprint(4, 4, 10, 20, 30);
 
     EXPECT_FALSE(store.find_exact(fingerprint).has_value());
@@ -83,7 +83,7 @@ TEST(FingerprintStoreTest, EmptyDatabaseBehavior) {
 }
 
 TEST(FingerprintStoreTest, FindNearestReportsClosestDistance) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     biopic::Fingerprint first;
     first.bytes.fill(10);
     biopic::Fingerprint second;
@@ -108,7 +108,7 @@ TEST(FingerprintStoreTest, FindNearestReportsClosestDistance) {
 }
 
 TEST(FingerprintStoreTest, RejectsRecordWithoutLabel) {
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     biopic::FingerprintRecord record;
     record.fingerprint = make_fingerprint(4, 4, 1, 2, 3);
     EXPECT_FALSE(store.add(record));

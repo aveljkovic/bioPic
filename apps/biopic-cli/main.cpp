@@ -10,8 +10,10 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace {
 
@@ -20,9 +22,48 @@ void print_usage() {
               << "  biopic hash IMAGE\n"
               << "  biopic compare IMAGE_A IMAGE_B\n"
               << "  biopic classify IMAGE [--config CONFIG]\n"
-              << "  biopic scan IMAGE [--config CONFIG]\n"
-              << "  biopic database add IMAGE --label LABEL\n"
-              << "  biopic database search IMAGE\n";
+              << "  biopic scan IMAGE [--database PATH] [--config CONFIG]\n"
+              << "  biopic database add IMAGE --label LABEL --database PATH\n"
+              << "  biopic database search IMAGE --database PATH\n";
+}
+
+std::optional<std::filesystem::path> parse_path_flag(int argc, char** argv,
+                                                     std::string_view flag_name,
+                                                     int start_index = 3) {
+    for (int index = start_index; index < argc - 1; ++index) {
+        const std::string argument = argv[index];
+        if (argument == flag_name) {
+            return std::filesystem::path(argv[index + 1]);
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** argv) {
+    const auto config_from_flag = parse_path_flag(argc, argv, "--config");
+    if (config_from_flag.has_value()) {
+        return config_from_flag;
+    }
+
+    const auto config_from_env = biopic::read_env_variable("BIOPIC_CLASSIFIER_CONFIG");
+    if (config_from_env.has_value()) {
+        return std::filesystem::path(*config_from_env);
+    }
+    return std::nullopt;
+}
+
+std::optional<std::filesystem::path> resolve_database_path(int argc, char** argv,
+                                                           int start_index = 3) {
+    return parse_path_flag(argc, argv, "--database", start_index);
+}
+
+std::unique_ptr<biopic::FingerprintStore> open_database_store(
+    const std::filesystem::path& database_path) {
+    auto store = biopic::open_persistent_fingerprint_store(database_path);
+    if (store == nullptr) {
+        std::cerr << "Failed to open database: " << database_path << '\n';
+    }
+    return store;
 }
 
 int hash_image(const std::filesystem::path& path) {
@@ -76,21 +117,6 @@ int compare_images(const std::filesystem::path& left, const std::filesystem::pat
     std::cout << "l2: " << l2.value << '\n';
     std::cout << "l2_squared: " << l2_squared.value << '\n';
     return 0;
-}
-
-std::optional<std::filesystem::path> resolve_classifier_config(int argc, char** argv) {
-    for (int index = 3; index < argc - 1; ++index) {
-        const std::string argument = argv[index];
-        if (argument == "--config") {
-            return std::filesystem::path(argv[index + 1]);
-        }
-    }
-
-    const auto config_from_env = biopic::read_env_variable("BIOPIC_CLASSIFIER_CONFIG");
-    if (config_from_env.has_value()) {
-        return std::filesystem::path(*config_from_env);
-    }
-    return std::nullopt;
 }
 
 std::optional<std::string> parse_label_argument(int argc, char** argv, int start_index) {
@@ -153,9 +179,19 @@ int classify_image(const std::filesystem::path& path,
 }
 
 int scan_image(const std::filesystem::path& path,
+               const std::optional<std::filesystem::path>& database_path,
                const std::optional<std::filesystem::path>& config_path) {
-    const auto result =
-        biopic::scan_file(path, config_path, &biopic::shared_fingerprint_store());
+    std::unique_ptr<biopic::FingerprintStore> owned_store;
+    const biopic::FingerprintStore* store = nullptr;
+    if (database_path.has_value()) {
+        owned_store = open_database_store(*database_path);
+        if (owned_store == nullptr) {
+            return 1;
+        }
+        store = owned_store.get();
+    }
+
+    const auto result = biopic::scan_file(path, store, config_path);
     if (!result.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
         return 1;
@@ -170,6 +206,11 @@ int scan_image(const std::filesystem::path& path,
     std::cout << "  Version: " << result->fingerprint.version << '\n';
     std::cout << "  Status: generated\n\n";
     std::cout << "Database:\n";
+    if (database_path.has_value()) {
+        std::cout << "  Path: " << *database_path << '\n';
+    } else {
+        std::cout << "  Status: not configured\n";
+    }
     std::cout << "  Match: " << biopic::match_status_label(result->match_status) << '\n';
     std::cout << std::fixed << std::setprecision(6);
     std::cout << "  Distance: " << result->nearest_distance << '\n';
@@ -190,23 +231,28 @@ int scan_image(const std::filesystem::path& path,
     return 0;
 }
 
-int database_add(const std::filesystem::path& path, const std::string& label) {
+int database_add(const std::filesystem::path& path, const std::string& label,
+                 const std::filesystem::path& database_path) {
     const auto fingerprint = fingerprint_from_image(path);
     if (!fingerprint.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
         return 1;
     }
 
+    auto store = open_database_store(database_path);
+    if (store == nullptr) {
+        return 1;
+    }
+
     biopic::FingerprintRecord record;
     record.fingerprint = *fingerprint;
     record.label = label;
-    biopic::FingerprintStore& store = biopic::shared_fingerprint_store();
-    if (!store.add(record)) {
+    if (!store->add(record)) {
         std::cerr << "Failed to store fingerprint\n";
         return 1;
     }
 
-    const auto stored = store.find_exact(*fingerprint);
+    const auto stored = store->find_exact(*fingerprint);
     if (!stored.has_value()) {
         std::cerr << "Failed to retrieve stored fingerprint\n";
         return 1;
@@ -218,15 +264,20 @@ int database_add(const std::filesystem::path& path, const std::string& label) {
     return 0;
 }
 
-int database_search(const std::filesystem::path& path) {
+int database_search(const std::filesystem::path& path,
+                    const std::filesystem::path& database_path) {
     const auto fingerprint = fingerprint_from_image(path);
     if (!fingerprint.has_value()) {
         std::cerr << "Failed to decode image: " << path << '\n';
         return 1;
     }
 
-    const biopic::FingerprintStore& store = biopic::shared_fingerprint_store();
-    const biopic::NearestMatchResult nearest = store.find_nearest(*fingerprint);
+    auto store = open_database_store(database_path);
+    if (store == nullptr) {
+        return 1;
+    }
+
+    const biopic::NearestMatchResult nearest = store->find_nearest(*fingerprint);
 
     std::cout << "Match:\n" << (nearest.exact_match ? "true" : "false") << "\n\n";
     std::cout << std::fixed << std::setprecision(6);
@@ -253,21 +304,34 @@ int main(int argc, char** argv) {
         return classify_image(argv[2], resolve_classifier_config(argc, argv));
     }
     if (command == "scan" && argc >= 3) {
-        return scan_image(argv[2], resolve_classifier_config(argc, argv));
+        return scan_image(argv[2], resolve_database_path(argc, argv),
+                        resolve_classifier_config(argc, argv));
     }
     if (command == "database" && argc >= 4) {
         const std::string subcommand = argv[2];
         if (subcommand == "add") {
             const auto label = parse_label_argument(argc, argv, 4);
+            const auto database_path = resolve_database_path(argc, argv, 4);
             if (!label.has_value()) {
                 std::cerr << "Missing required --label argument\n";
                 print_usage();
                 return 1;
             }
-            return database_add(argv[3], *label);
+            if (!database_path.has_value()) {
+                std::cerr << "Missing required --database argument\n";
+                print_usage();
+                return 1;
+            }
+            return database_add(argv[3], *label, *database_path);
         }
-        if (subcommand == "search" && argc == 4) {
-            return database_search(argv[3]);
+        if (subcommand == "search") {
+            const auto database_path = resolve_database_path(argc, argv, 4);
+            if (!database_path.has_value()) {
+                std::cerr << "Missing required --database argument\n";
+                print_usage();
+                return 1;
+            }
+            return database_search(argv[3], *database_path);
         }
     }
 

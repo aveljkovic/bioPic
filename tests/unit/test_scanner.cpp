@@ -37,7 +37,7 @@ TEST(ScannerTest, ScanWithInvalidClassifierConfigurationContinuesWithoutClassifi
 
     const std::filesystem::path missing_config =
         std::filesystem::temp_directory_path() / "biopic_missing_scanner_config.conf";
-    const biopic::ScanResult result = biopic::scan(view, missing_config);
+    const biopic::ScanResult result = biopic::scan(view, nullptr, missing_config);
 
     const biopic::Hasher hasher;
     EXPECT_EQ(result.fingerprint.bytes, hasher.compute(view).bytes);
@@ -52,7 +52,7 @@ TEST(ScannerTest, ScanWithClassifierAvailable) {
     const auto image = biopic::test_support::make_uniform_rgb(4, 4, 10, 20, 30);
     biopic::ImageView view(image.width, image.height, image.rgb);
 
-    const biopic::ScanResult result = biopic::scan(view, config_path);
+    const biopic::ScanResult result = biopic::scan(view, nullptr, config_path);
 
     const biopic::Hasher hasher;
     EXPECT_EQ(result.fingerprint.bytes, hasher.compute(view).bytes);
@@ -102,13 +102,13 @@ TEST(ScannerTest, ExactDatabaseMatchBlocksWithoutClassifier) {
     biopic::ImageView view(image.width, image.height, image.rgb);
 
     biopic::Hasher hasher;
-    biopic::FingerprintStore store;
+    biopic::InMemoryFingerprintStore store;
     biopic::FingerprintRecord record;
     record.fingerprint = hasher.compute(view);
     record.label = "known_bad";
     ASSERT_TRUE(store.add(record));
 
-    const biopic::ScanResult result = biopic::scan(view, std::nullopt, &store);
+    const biopic::ScanResult result = biopic::scan(view, &store);
     EXPECT_EQ(result.match_status, biopic::MatchStatus::ExactMatch);
     ASSERT_TRUE(result.matched_record.has_value());
     EXPECT_EQ(result.matched_record->label, "known_bad");
