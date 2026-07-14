@@ -21,6 +21,10 @@ function(biopic_add_test test_name)
 endfunction()
 
 biopic_add_test(test_distance unit/test_distance.cpp)
+biopic_add_test(test_parse_double unit/test_parse_double.cpp)
+target_include_directories(
+  test_parse_double
+  PRIVATE ${CMAKE_SOURCE_DIR}/src)
 biopic_add_test(test_fingerprint_codec unit/test_fingerprint_codec.cpp)
 biopic_add_test(test_hasher unit/test_hasher.cpp)
 biopic_add_test(test_uniform_colors unit/test_uniform_colors.cpp)

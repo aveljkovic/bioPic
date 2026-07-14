@@ -57,6 +57,7 @@ target_sources(
           src/index/bucketed_index.cpp
           src/policy/moderation_policy.cpp
           src/core/version.cpp
+          src/core/parse_double.cpp
           src/evaluation/metrics.cpp
           src/evaluation/dataset_manifest.cpp
           src/database/database_maintenance.cpp
@@ -147,6 +148,7 @@ if(BIOPIC_BUILD_CLI)
     apps/biopic-cli/cli_common.cpp
     apps/biopic-cli/cli_commands.cpp)
   target_link_libraries(biopic-cli PRIVATE biopic_core)
+  target_include_directories(biopic-cli PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   biopic_set_target_warnings(biopic-cli)
 endif()
 

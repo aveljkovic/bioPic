@@ -1,24 +1,13 @@
 #include "biopic/index/hash_match_config.hpp"
 
 #include "biopic/env.hpp"
-
-#include <charconv>
-#include <string>
+#include "core/parse_double.hpp"
 
 namespace biopic {
 
 namespace {
 
-std::optional<double> parse_double(std::string_view value) {
-    double parsed = 0.0;
-    const auto* begin = value.data();
-    const auto* end = begin + value.size();
-    const auto result = std::from_chars(begin, end, parsed);
-    if (result.ec != std::errc() || result.ptr != end) {
-        return std::nullopt;
-    }
-    return parsed;
-}
+using detail::parse_double;
 
 } // namespace
 

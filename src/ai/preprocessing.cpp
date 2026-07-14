@@ -66,8 +66,9 @@ std::optional<PreparedTensor> Preprocessor::prepare(const ImageView& image) cons
                 };
                 const float pixel = channels_rgb[channel] * static_cast<float>(requirements_.scale);
                 const float normalized = (pixel - mean) * inverse_stddev;
-                tensor.data[channel * plane_size + static_cast<std::size_t>(y) *
-                                                        static_cast<std::size_t>(tensor.width) +
+                tensor.data[static_cast<std::size_t>(channel) * plane_size +
+                                    static_cast<std::size_t>(y) *
+                                        static_cast<std::size_t>(tensor.width) +
                                     static_cast<std::size_t>(x)] = normalized;
             }
         }

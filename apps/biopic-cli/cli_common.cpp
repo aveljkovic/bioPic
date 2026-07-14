@@ -2,6 +2,7 @@
 
 #include "biopic/env.hpp"
 #include "biopic/index/hash_match_config.hpp"
+#include "core/parse_double.hpp"
 
 #include <iostream>
 
@@ -33,12 +34,8 @@ ParsedArgs parse_args(int argc, char** argv, int positional_start) {
         }
         if (argument == "--threshold" && index + 1 < argc) {
             const std::string value = argv[++index];
-            double parsed = 0.0;
-            const auto* begin = value.data();
-            const auto* end = begin + value.size();
-            const auto result = std::from_chars(begin, end, parsed);
-            if (result.ec == std::errc() && result.ptr == end) {
-                args.threshold = parsed;
+            if (const auto parsed = detail::parse_double(value); parsed.has_value()) {
+                args.threshold = *parsed;
             }
             continue;
         }

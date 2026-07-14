@@ -30,7 +30,7 @@ std::vector<FingerprintRecord> find_similar_among_records(
     double threshold) {
     BruteForceIndex index;
     for (const FingerprintRecord& entry : records) {
-        index.add(entry);
+        (void)index.add(entry);
     }
 
     HashMatchConfig config = kDefaultHashMatchConfig;
@@ -42,7 +42,7 @@ NearestMatchResult find_nearest_among_records(const std::vector<FingerprintRecor
                                               const Fingerprint& fingerprint) {
     BruteForceIndex index;
     for (const FingerprintRecord& entry : records) {
-        index.add(entry);
+        (void)index.add(entry);
     }
     return index.find_nearest(fingerprint, kDefaultHashMatchConfig);
 }
