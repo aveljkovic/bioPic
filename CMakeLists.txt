@@ -54,7 +54,8 @@ target_sources(
           src/index/fingerprint_bucket.cpp
           src/index/candidate_verification.cpp
           src/index/fingerprint_bloom_filter.cpp
-          src/index/bucketed_index.cpp)
+          src/index/bucketed_index.cpp
+          src/policy/moderation_policy.cpp)
 
 target_include_directories(
   biopic_core

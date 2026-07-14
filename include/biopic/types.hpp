@@ -23,6 +23,7 @@ enum class ModerationDecision : std::uint8_t {
 enum class ModerationReason : std::uint8_t {
     None,
     KnownHashMatch,
+    SimilarHashMatch,
     ModelClassification,
     InvalidInput,
     ProcessingError,

@@ -4,6 +4,7 @@
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
 #include "biopic/index/fingerprint_normalization.hpp"
+#include "biopic/policy/moderation_policy.hpp"
 
 namespace biopic {
 
@@ -115,16 +116,6 @@ ScanResult scan(const ImageView& image, IClassifier& classifier, const Fingerpri
     result.classifier_status = "available";
     result.classification = classifier.classify(image);
     return result;
-}
-
-ModerationDecision scan_decision(const ScanResult& result) {
-    if (result.match_status == MatchStatus::ExactMatch) {
-        return ModerationDecision::Block;
-    }
-    if (!result.classification.has_value()) {
-        return ModerationDecision::Allow;
-    }
-    return result.classification->detected ? ModerationDecision::Block : ModerationDecision::Allow;
 }
 
 const char* scan_decision_label(ModerationDecision decision) {

@@ -6,6 +6,7 @@
 #include "biopic/hasher.hpp"
 #include "biopic/image.hpp"
 #include "biopic/index/hash_match_config.hpp"
+#include "biopic/policy/moderation_policy.hpp"
 #include "pipeline/scanner.hpp"
 
 #include <charconv>
@@ -233,7 +234,7 @@ int scan_image(const std::filesystem::path& path,
         return 1;
     }
 
-    const biopic::ModerationDecision decision = biopic::scan_decision(*result);
+    const biopic::PolicyEvaluation policy = biopic::evaluate_policy(*result);
 
     std::cout << "BioPic Scan\n\n";
     std::cout << "Image:\n" << path.string() << "\n\n";
@@ -263,7 +264,8 @@ int scan_image(const std::filesystem::path& path,
                   << '\n';
     }
     std::cout << "\nDecision:\n";
-    std::cout << "  " << biopic::scan_decision_label(decision) << '\n';
+    std::cout << "  " << biopic::scan_decision_label(policy.decision) << '\n';
+    std::cout << "  Reason: " << biopic::moderation_reason_label(policy.reason) << '\n';
     return 0;
 }
 

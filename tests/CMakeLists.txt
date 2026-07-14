@@ -36,6 +36,7 @@ biopic_add_test(test_similarity_index_performance unit/test_similarity_index_per
 biopic_add_test(test_classifier unit/test_classifier.cpp)
 biopic_add_test(test_classifier_config unit/test_classifier_config.cpp)
 biopic_add_test(test_scanner unit/test_scanner.cpp)
+biopic_add_test(test_moderation_policy unit/test_moderation_policy.cpp)
 target_compile_definitions(
   test_scanner
   PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
@@ -69,7 +70,7 @@ if(BIOPIC_BUILD_CLI)
     test_cli_scan
     PROPERTIES
       PASS_REGULAR_EXPRESSION
-      "BioPic Scan[\r\n]+[\r\n]+Image:[\r\n]+.*[\r\n]+[\r\n]+Fingerprint:[\r\n]+  Algorithm: biopic[\r\n]+  Version: 1[\r\n]+  Status: generated[\r\n]+[\r\n]+Database:[\r\n]+  Status: not configured[\r\n]+  Match: no match[\r\n]+  Distance: 0.000000[\r\n]+[\r\n]+Classifier:[\r\n]+  Status: available[\r\n]+  Label: channel_r[\r\n]+  Confidence: 0.[0-9]+[\r\n]+  Detection: false[\r\n]+[\r\n]+Decision:[\r\n]+  ALLOW")
+      "BioPic Scan[\r\n]+[\r\n]+Image:[\r\n]+.*[\r\n]+[\r\n]+Fingerprint:[\r\n]+  Algorithm: biopic[\r\n]+  Version: 1[\r\n]+  Status: generated[\r\n]+[\r\n]+Database:[\r\n]+  Status: not configured[\r\n]+  Match: no match[\r\n]+  Distance: 0.000000[\r\n]+[\r\n]+Classifier:[\r\n]+  Status: available[\r\n]+  Label: channel_r[\r\n]+  Confidence: 0.[0-9]+[\r\n]+  Detection: false[\r\n]+[\r\n]+Decision:[\r\n]+  ALLOW[\r\n]+  Reason: none")
 
   add_test(NAME test_cli_scan_without_classifier COMMAND $<TARGET_FILE:biopic-cli> scan
                                                         ${CLI_CLASSIFY_FIXTURE_PNG})
@@ -78,7 +79,7 @@ if(BIOPIC_BUILD_CLI)
     PROPERTIES
       ENVIRONMENT "BIOPIC_CLASSIFIER_CONFIG="
       PASS_REGULAR_EXPRESSION
-      "BioPic Scan[\r\n]+[\r\n]+Image:[\r\n]+.*[\r\n]+[\r\n]+Fingerprint:[\r\n]+  Algorithm: biopic[\r\n]+  Version: 1[\r\n]+  Status: generated[\r\n]+[\r\n]+Database:[\r\n]+  Status: not configured[\r\n]+  Match: no match[\r\n]+  Distance: 0.000000[\r\n]+[\r\n]+Classifier:[\r\n]+  Status: not configured[\r\n]+[\r\n]+Decision:[\r\n]+  ALLOW")
+      "BioPic Scan[\r\n]+[\r\n]+Image:[\r\n]+.*[\r\n]+[\r\n]+Fingerprint:[\r\n]+  Algorithm: biopic[\r\n]+  Version: 1[\r\n]+  Status: generated[\r\n]+[\r\n]+Database:[\r\n]+  Status: not configured[\r\n]+  Match: no match[\r\n]+  Distance: 0.000000[\r\n]+[\r\n]+Classifier:[\r\n]+  Status: not configured[\r\n]+[\r\n]+Decision:[\r\n]+  ALLOW[\r\n]+  Reason: none")
 
   set(CLI_PERSISTENCE_DATABASE ${CMAKE_CURRENT_BINARY_DIR}/cli_persistence_test.db)
   add_test(

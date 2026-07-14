@@ -80,9 +80,15 @@ TEST(ScannerTest, ScanWithInjectedClassifierCombinesFingerprintAndClassification
 
 TEST(ScannerTest, ScanDecisionBlockWhenDetected) {
     biopic::ScanResult result;
-    result.classification = biopic::ClassificationResult{"explicit", 0.95, true};
+    result.classification = biopic::ClassificationResult{"explicit", 0.98, true};
     EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Block);
     EXPECT_STREQ(biopic::scan_decision_label(biopic::scan_decision(result)), "BLOCK");
+}
+
+TEST(ScannerTest, ScanDecisionReviewWhenMediumConfidence) {
+    biopic::ScanResult result;
+    result.classification = biopic::ClassificationResult{"explicit", 0.85, true};
+    EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Review);
 }
 
 TEST(ScannerTest, ScanFileDecodesOnceAndReturnsFingerprint) {
@@ -116,7 +122,7 @@ TEST(ScannerTest, SimilarDatabaseMatchUsesSingleNearestLookup) {
     EXPECT_EQ(result.match_status, biopic::MatchStatus::SimilarMatch);
     ASSERT_TRUE(result.matched_record.has_value());
     EXPECT_EQ(result.matched_record->label, "near_match");
-    EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Allow);
+    EXPECT_EQ(biopic::scan_decision(result), biopic::ModerationDecision::Review);
 }
 
 TEST(ScannerTest, ExactDatabaseMatchBlocksWithoutClassifier) {

@@ -9,6 +9,7 @@
 #include "biopic/database/fingerprint_store.hpp"
 #include "biopic/fingerprint.hpp"
 #include "biopic/image.hpp"
+#include "biopic/policy/moderation_policy.hpp"
 #include "biopic/types.hpp"
 
 namespace biopic {
@@ -48,7 +49,6 @@ struct ScanResult {
                             const FingerprintStore* store = nullptr,
                             const HashMatchConfig& match_config = kDefaultHashMatchConfig);
 
-[[nodiscard]] ModerationDecision scan_decision(const ScanResult& result);
 [[nodiscard]] const char* scan_decision_label(ModerationDecision decision);
 [[nodiscard]] const char* match_status_label(MatchStatus status);
 
