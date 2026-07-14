@@ -44,14 +44,14 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: ${{ runner.temp }}/vcpkg
+          path: vcpkg
           fetch-depth: 1
 
       - name: Bootstrap vcpkg
-        run: ${{ runner.temp }}/vcpkg/bootstrap-vcpkg.sh
+        run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Set VCPKG_ROOT
-        run: echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $GITHUB_ENV
 
       - name: Configure
         run: cmake --preset default
@@ -94,14 +94,14 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: ${{ runner.temp }}/vcpkg
+          path: vcpkg
           fetch-depth: 1
 
       - name: Bootstrap vcpkg
-        run: ${{ runner.temp }}/vcpkg/bootstrap-vcpkg.sh
+        run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Set VCPKG_ROOT
-        run: echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $GITHUB_ENV
 
       - name: Configure
         run: cmake --preset macos
@@ -143,15 +143,15 @@ jobs:
         with:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: C:\vcpkg
+          path: vcpkg
           fetch-depth: 1
 
       - name: Bootstrap vcpkg
-        run: C:\vcpkg\bootstrap-vcpkg.bat
+        run: .\vcpkg\bootstrap-vcpkg.bat
 
       - name: Set VCPKG_ROOT
         shell: pwsh
-        run: echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+        run: echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
 
       - name: Configure
         run: cmake --preset windows-msvc

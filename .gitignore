@@ -48,6 +48,7 @@ CMakeUserPresets.json
 *.exp
 
 /.vcpkg-bincache/
+/vcpkg/
 
 # Test and benchmark output
 *.gtest.xml
