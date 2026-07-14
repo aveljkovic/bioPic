@@ -12,6 +12,7 @@
 #include "biopic/index/fingerprint_bucket.hpp"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace biopic {
@@ -33,8 +34,8 @@ std::vector<FingerprintRecord> collect_candidates(const BucketedIndexImpl& impl,
         return candidates;
     }
 
-    std::vector<std::size_t> seen;
-    seen.reserve(512);
+    std::unordered_set<std::size_t> seen_indices;
+    seen_indices.reserve(512);
 
     for (const BandBucketRef& ref : candidate_bucket_refs(fingerprint, config, for_nearest)) {
         const auto iterator =
@@ -44,17 +45,9 @@ std::vector<FingerprintRecord> collect_candidates(const BucketedIndexImpl& impl,
         }
 
         for (const std::size_t record_index : iterator->second) {
-            bool already_seen = false;
-            for (const std::size_t prior_index : seen) {
-                if (prior_index == record_index) {
-                    already_seen = true;
-                    break;
-                }
-            }
-            if (already_seen) {
+            if (!seen_indices.insert(record_index).second) {
                 continue;
             }
-            seen.push_back(record_index);
             candidates.push_back(impl.records[record_index]);
         }
     }
@@ -91,7 +84,12 @@ bool BucketedIndex::add(const FingerprintRecord& candidate) {
 std::vector<SimilarityQueryResult> BucketedIndex::query(const Fingerprint& fingerprint,
                                                         const HashMatchConfig& config,
                                                         std::size_t limit) const {
-    return verify_similar_among_candidates(fingerprint, impl_->records, config, limit);
+    const std::vector<FingerprintRecord> candidates =
+        collect_candidates(*impl_, fingerprint, config, false);
+    if (candidates.empty()) {
+        return {};
+    }
+    return verify_similar_among_candidates(fingerprint, candidates, config, limit);
 }
 
 NearestMatchResult BucketedIndex::find_nearest(const Fingerprint& fingerprint,

@@ -10,6 +10,7 @@ namespace biopic {
 
 constexpr std::size_t kFingerprintBandCount = 12;
 constexpr std::size_t kFingerprintBandSize = 12;
+constexpr std::size_t kFingerprintBandSlotCount = kFingerprintBandCount * 2 + 1;
 
 struct BandBucketRef {
     std::uint32_t band_index = 0;
@@ -20,11 +21,23 @@ struct BandBucketRef {
     }
 };
 
-[[nodiscard]] std::uint32_t band_bucket_key(const Fingerprint& fingerprint, std::size_t band_index);
+[[nodiscard]] std::uint32_t exact_band_slot(std::size_t band_index);
+
+[[nodiscard]] std::uint32_t nibble_band_slot(std::size_t band_index);
+
+[[nodiscard]] std::uint32_t prefix_band_slot();
+
+[[nodiscard]] std::uint32_t exact_band_bucket_key(const Fingerprint& fingerprint,
+                                                std::size_t band_index);
+
+[[nodiscard]] std::uint32_t nibble_band_bucket_key(const Fingerprint& fingerprint,
+                                                   std::size_t band_index);
 
 [[nodiscard]] std::uint32_t prefix_bucket_key(const Fingerprint& fingerprint);
 
 [[nodiscard]] std::vector<BandBucketRef> band_bucket_refs(const Fingerprint& fingerprint);
+
+[[nodiscard]] std::uint32_t nibble_neighbor_delta(const HashMatchConfig& config);
 
 [[nodiscard]] std::vector<BandBucketRef> candidate_bucket_refs(const Fingerprint& fingerprint,
                                                                const HashMatchConfig& config,

@@ -376,25 +376,10 @@ std::vector<FingerprintRecord> PersistentFingerprintStore::find_similar(
     }
 
     const std::vector<FingerprintRecord> candidates =
-        load_candidate_records(fingerprint, config, true);
-    const std::vector<FingerprintRecord> all_records = load_all_records();
-    const auto candidate_matches =
-        verify_similar_among_candidates(fingerprint, candidates, config);
-    const auto full_matches =
-        verify_similar_among_candidates(fingerprint, all_records, config);
-
-    if (candidate_matches.size() >= full_matches.size()) {
-        std::vector<FingerprintRecord> matches;
-        matches.reserve(candidate_matches.size());
-        for (const SimilarityQueryResult& result : candidate_matches) {
-            matches.push_back(result.matched);
-        }
-        return matches;
-    }
-
+        load_candidate_records(fingerprint, config, false);
     std::vector<FingerprintRecord> matches;
-    matches.reserve(full_matches.size());
-    for (const SimilarityQueryResult& result : full_matches) {
+    for (const SimilarityQueryResult& result :
+         verify_similar_among_candidates(fingerprint, candidates, config)) {
         matches.push_back(result.matched);
     }
     return matches;
