@@ -34,24 +34,13 @@ jobs:
           restore-keys: |
             vcpkg-bincache-linux-
 
-      - name: Read vcpkg baseline
-        id: vcpkg_baseline
+      - name: Setup vcpkg
         run: |
-          echo "commit=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout vcpkg
-        uses: actions/checkout@v4
-        with:
-          repository: microsoft/vcpkg
-          ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: vcpkg
-          fetch-depth: 0
-
-      - name: Bootstrap vcpkg
-        run: ./vcpkg/bootstrap-vcpkg.sh
-
-      - name: Set VCPKG_ROOT
-        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $GITHUB_ENV
+          VCPKG_COMMIT=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout "$VCPKG_COMMIT"
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> "$GITHUB_ENV"
 
       - name: Configure
         run: cmake --preset default
@@ -84,24 +73,13 @@ jobs:
           restore-keys: |
             vcpkg-bincache-macos-
 
-      - name: Read vcpkg baseline
-        id: vcpkg_baseline
+      - name: Setup vcpkg
         run: |
-          echo "commit=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout vcpkg
-        uses: actions/checkout@v4
-        with:
-          repository: microsoft/vcpkg
-          ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: vcpkg
-          fetch-depth: 0
-
-      - name: Bootstrap vcpkg
-        run: ./vcpkg/bootstrap-vcpkg.sh
-
-      - name: Set VCPKG_ROOT
-        run: echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> $GITHUB_ENV
+          VCPKG_COMMIT=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['builtin-baseline'])")
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout "$VCPKG_COMMIT"
+          ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
+          echo "VCPKG_ROOT=${{ github.workspace }}/vcpkg" >> "$GITHUB_ENV"
 
       - name: Configure
         run: cmake --preset macos
@@ -131,27 +109,14 @@ jobs:
           restore-keys: |
             vcpkg-bincache-windows-
 
-      - name: Read vcpkg baseline
-        id: vcpkg_baseline
+      - name: Setup vcpkg
         shell: pwsh
         run: |
           $commit = (Get-Content vcpkg.json -Raw | ConvertFrom-Json).'builtin-baseline'
-          "commit=$commit" >> $env:GITHUB_OUTPUT
-
-      - name: Checkout vcpkg
-        uses: actions/checkout@v4
-        with:
-          repository: microsoft/vcpkg
-          ref: ${{ steps.vcpkg_baseline.outputs.commit }}
-          path: vcpkg
-          fetch-depth: 0
-
-      - name: Bootstrap vcpkg
-        run: .\vcpkg\bootstrap-vcpkg.bat
-
-      - name: Set VCPKG_ROOT
-        shell: pwsh
-        run: echo "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
+          git clone https://github.com/microsoft/vcpkg.git vcpkg
+          git -C vcpkg checkout $commit
+          .\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          "VCPKG_ROOT=${{ github.workspace }}\vcpkg" >> $env:GITHUB_ENV
 
       - name: Configure
         run: cmake --preset windows-msvc
