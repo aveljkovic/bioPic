@@ -1,0 +1,64 @@
+name: Bug report
+description: Report incorrect behavior, crashes, or test failures
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please include enough detail to reproduce the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Commands, inputs, or code that trigger the issue.
+      placeholder: |
+        1. Build with `cmake --preset default`
+        2. Run `biopic-cli scan image.jpg --database db.sqlite`
+        3. See error ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: BioPic version or commit
+      placeholder: e.g. 0.1.0 or git SHA
+    validations:
+      required: false
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste stderr, test output, or stack traces.
+      render: shell
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Security
+      options:
+        - label: This is not a security vulnerability (report those privately per SECURITY.md)
+          required: true

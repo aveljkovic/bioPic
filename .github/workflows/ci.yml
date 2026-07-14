@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, milestone-*]
   pull_request:
     branches: [main, master]
 
@@ -14,10 +14,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Update apt package index
-        run: sudo apt-get update
+
       - name: Install Linux build dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y \
             ninja-build \
             pkg-config \
@@ -25,14 +25,7 @@ jobs:
             autoconf-archive \
             automake \
             libtool
-      - name: Verify autotools before vcpkg
-        run: |
-          command -v ninja
-          command -v pkg-config
-          command -v autoconf
-          command -v automake
-          command -v libtoolize
-          libtoolize --version
+
       - name: Cache vcpkg binary artifacts
         uses: actions/cache@v4
         with:
@@ -40,26 +33,36 @@ jobs:
           key: vcpkg-bincache-linux-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-bincache-linux-
+
       - name: Setup vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg.git ${{ runner.temp }}/vcpkg
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git ${{ runner.temp }}/vcpkg
           ${{ runner.temp }}/vcpkg/bootstrap-vcpkg.sh
           echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+
       - name: Configure
         run: cmake --preset default
+
       - name: Build
         run: cmake --build build/default
-      - name: Build benchmarks
-        run: cmake --build build/default --target bench_hash
+
       - name: Test
         run: ctest --test-dir build/default --output-on-failure
+
+      - name: Benchmark smoke (hash)
+        run: ./build/default/benchmarks/bench_hash --benchmark_filter=BM_L2Comparison --benchmark_repetitions=1
+
+      - name: Benchmark smoke (similarity)
+        run: ./build/default/benchmarks/bench_similarity_search --benchmark_filter=BM_BucketedNearest/100 --benchmark_repetitions=1
 
   macos:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: brew install ninja
+
       - name: Cache vcpkg binary artifacts
         uses: actions/cache@v4
         with:
@@ -67,22 +70,33 @@ jobs:
           key: vcpkg-bincache-macos-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-bincache-macos-
+
       - name: Setup vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg.git ${{ runner.temp }}/vcpkg
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git ${{ runner.temp }}/vcpkg
           ${{ runner.temp }}/vcpkg/bootstrap-vcpkg.sh
           echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> $GITHUB_ENV
+
       - name: Configure
         run: cmake --preset macos
+
       - name: Build
         run: cmake --build build/macos
+
       - name: Test
         run: ctest --test-dir build/macos --output-on-failure
+
+      - name: Benchmark smoke (hash)
+        run: ./build/macos/benchmarks/bench_hash --benchmark_filter=BM_L2Comparison --benchmark_repetitions=1
+
+      - name: Benchmark smoke (similarity)
+        run: ./build/macos/benchmarks/bench_similarity_search --benchmark_filter=BM_BucketedNearest/100 --benchmark_repetitions=1
 
   windows:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+
       - name: Cache vcpkg binary artifacts
         uses: actions/cache@v4
         with:
@@ -90,14 +104,24 @@ jobs:
           key: vcpkg-bincache-windows-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-bincache-windows-
+
       - name: Setup vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git C:\vcpkg
           C:\vcpkg\bootstrap-vcpkg.bat
           echo "VCPKG_ROOT=C:\vcpkg" >> $env:GITHUB_ENV
+
       - name: Configure
         run: cmake --preset windows-msvc
+
       - name: Build
         run: cmake --build build/msvc --config Release
+
       - name: Test
         run: ctest --test-dir build/msvc -C Release --output-on-failure
+
+      - name: Benchmark smoke (hash)
+        run: build\msvc\benchmarks\Release\bench_hash.exe --benchmark_filter=BM_L2Comparison --benchmark_repetitions=1
+
+      - name: Benchmark smoke (similarity)
+        run: build\msvc\benchmarks\Release\bench_similarity_search.exe --benchmark_filter=BM_BucketedNearest/100 --benchmark_repetitions=1
