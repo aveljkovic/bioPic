@@ -1,6 +1,6 @@
 {
   "name": "biopic",
-  "version-string": "0.1.0",
+  "version-string": "0.6.0",
   "description": "BioPic image moderation engine",
   "dependencies": [
     {
