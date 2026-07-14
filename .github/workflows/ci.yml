@@ -45,7 +45,7 @@ jobs:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
           path: vcpkg
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Bootstrap vcpkg
         run: ./vcpkg/bootstrap-vcpkg.sh
@@ -95,7 +95,7 @@ jobs:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
           path: vcpkg
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Bootstrap vcpkg
         run: ./vcpkg/bootstrap-vcpkg.sh
@@ -144,7 +144,7 @@ jobs:
           repository: microsoft/vcpkg
           ref: ${{ steps.vcpkg_baseline.outputs.commit }}
           path: vcpkg
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Bootstrap vcpkg
         run: .\vcpkg\bootstrap-vcpkg.bat
