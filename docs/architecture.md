@@ -2,53 +2,137 @@
 
 ## Overview
 
-BioPic is a moderation engine intended to return structured decisions to host applications. It never deletes content, bans users, or contacts external organizations.
+BioPic is a moderation engine that returns structured decisions to host applications. It never deletes content, bans users, or contacts external organizations — the host application owns enforcement.
 
-**Milestone 1** ships only the hashing core: image decode, BioPicHash v1, fingerprint encoding, and distance metrics. Classification, database matching, and moderation orchestration are planned but not compiled in this release.
+The current release ships a complete **offline moderation core**: image decode, BioPicHash v1, ONNX classification, SQLite fingerprint storage, LSH-accelerated similarity search, and a unified scan pipeline exposed via C++, C, and CLI.
 
 ```
-[Milestone 1 — implemented]
-  Image bytes -> ImageDecoder -> canonical RGB -> Hasher -> Fingerprint -> distance/encoding
-
-[Future milestones — not compiled]
-  Host App -> Transport (REST/gRPC/SDK) -> ModerationEngine -> Decision
-                                              |
-                         +--------------------+--------------------+
-                         |                    |                    |
-                   ImageDecoder          Hasher (v1)      INudityClassifier
-                         |                    |                    |
-                   OpenCV decode         BioPicHash         ONNX Runtime
+Host Application
+       │
+       ▼
+  ┌─────────┐     ┌──────────────┐     ┌─────────────────┐
+  │   CLI   │     │  C++ / C API │     │  Future REST    │
+  └────┬────┘     └──────┬───────┘     └────────┬────────┘
+       │                 │                       │
+       └─────────────────┼───────────────────────┘
+                         ▼
+                    Scanner
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+    ImageDecoder      Hasher      FingerprintStore
+         │               │               │
+      OpenCV        BioPicHash v1   SimilarityIndex
+                                         │
+                              PersistentFingerprintStore
+                                    (SQLite + buckets)
+         │               │               │
+         └───────────────┼───────────────┘
+                         │
+                   IClassifier (ONNX)
+                         │
+                 ModerationDecision
 ```
 
-## Module boundaries
+## Component pipeline
 
-| Module | Milestone 1 status |
-|--------|-------------------|
-| `image` | **Implemented** — secure decode, EXIF orientation, canonical RGB, SHA-256 |
-| `hash` | **Implemented** — BioPicHash v1, encoding, L1/L2 distance |
-| `inference` | **Interface only** — `INudityClassifier` abstract class; no ONNX runtime |
-| `storage` | **Interface only** — `IHashStore` abstract class; no PostgreSQL |
-| `policy` | **Not compiled** — `ModerationEngine` deferred to a future milestone |
-| `server` | **Not started** — REST/gRPC transport |
-| `bindings/c` | **Implemented** — stable C ABI over the C++ core |
+The moderation path is intentionally layered. Each stage has a narrow responsibility:
 
-## Planned moderation pipeline (future)
+```
+ImageDecoder
+      ↓
+   Hasher
+      ↓
+FingerprintStore  ←── SimilarityIndex (in-memory or SQLite-backed)
+      ↓
+  IClassifier
+      ↓
+   Scanner
+      ↓
+     CLI
+```
 
-When classification and storage are implemented, the pipeline will:
+| Stage | Responsibility | Key types |
+|-------|----------------|-----------|
+| **ImageDecoder** | Decode bytes to canonical RGB; enforce size limits | `ImageDecoder`, `ImageView` |
+| **Hasher** | Compute BioPicHash v1 perceptual fingerprint | `Hasher`, `Fingerprint` |
+| **FingerprintStore** | Persist and query labeled fingerprints | `FingerprintStore`, `FingerprintRecord` |
+| **SimilarityIndex** | In-memory similarity search with pluggable indexing | `SimilarityIndex`, `BucketedIndex` |
+| **IClassifier** | ONNX-backed image classification | `OnnxClassifier`, `ClassificationResult` |
+| **Scanner** | Orchestrate decode → hash → match → classify → decision | `scan()`, `ScanResult` |
+| **CLI** | User-facing commands | `apps/biopic-cli` |
 
-1. Receive encoded bytes and optional subject identifier.
-2. Enforce decode limits (size, dimensions, pixels, timeout, formats).
-3. Detect format from bytes; reject malformed or animated images.
-4. Apply EXIF orientation and convert to 8-bit RGB.
-5. Compute SHA-256 over canonical RGB bytes.
-6. Compute BioPicHash version 1.
-7. Search known hashes: exact SHA-256, exact fingerprint, approximate candidates with exact rescoring.
-8. If blocked hash match within threshold, return `BLOCK` / `KNOWN_HASH_MATCH`.
-9. Otherwise run ONNX classifier when configured.
-10. Map classifier scores to `ALLOW`, `REVIEW`, or `BLOCK`.
-11. Return structured result; do not retain raw images by default.
+## Module map
 
-Hash enrollment will require authenticated administrative action. Model positives will not auto-enroll.
+| Directory | Module | Status |
+|-----------|--------|--------|
+| `src/image/` | Secure image decode, EXIF orientation | Implemented |
+| `src/hash/` | BioPicHash v1, encoding, distance | Implemented |
+| `src/index/` | SimilarityIndex, LSH buckets, verification | Implemented |
+| `src/database/` | FingerprintStore, SQLite persistence | Implemented |
+| `src/ai/` | ONNX Runtime classifier, preprocessing | Implemented |
+| `src/pipeline/` | Scanner orchestration | Implemented |
+| `apps/biopic-cli/` | Command-line interface | Implemented |
+| `bindings/c/` | Stable C ABI | Implemented |
+| `api/openapi.yaml` | Future REST contract | Spec only |
+
+## Scan pipeline behavior
+
+When `scan()` runs on an image:
+
+1. **Decode** — Detect format; reject malformed input; apply EXIF orientation; produce 8-bit RGB.
+2. **Fingerprint** — Compute BioPicHash v1 (144 bytes, versioned).
+3. **Database lookup** (optional) — If a `FingerprintStore` is provided:
+   - Check bloom filter for exact match candidates.
+   - Run `find_nearest()` through the LSH index (scan path, <1% candidates at scale).
+   - Set `MatchStatus` to `ExactMatch` or `SimilarMatch` when within threshold.
+4. **Classification** (optional) — If a classifier config path is set, load ONNX model and run inference.
+5. **Policy** — `ModerationPolicy` maps detection signals to `Allow`, `Review`, or `Block`.
+6. **Decision** — CLI and integrations consume `PolicyEvaluation` (decision + reason).
+
+Hash enrollment requires an explicit `database add` (or API call). Classifier positives do not auto-enroll.
+
+## Policy engine (Milestone 9)
+
+Detection and decision are separated. The scanner produces a `ScanResult`; the policy engine decides:
+
+| Signal | Default decision |
+|--------|------------------|
+| Exact fingerprint match | BLOCK |
+| Classifier confidence ≥ 0.97 | BLOCK |
+| Classifier confidence 0.70–0.97 | REVIEW |
+| Similar fingerprint match | REVIEW |
+| No match | ALLOW |
+
+Configure thresholds via `PolicyConfig`. When multiple signals apply, the most severe decision wins (Block > Review > Allow).
+
+**Planned:** JSON/file-based policy loading and per-label database rules.
+
+## Similarity search architecture
+
+```
+Fingerprint
+      │
+      ├── find_nearest (scan path)
+      │        12 exact band hashes + prefix bucket
+      │        → candidate union → L2 verification
+      │
+      └── find_similar / query (threshold search)
+               12 packed-nibble LSH tables
+               → ±nibble neighbor buckets
+               → candidate union → L2 verification
+```
+
+Backends implement the same `SimilarityIndex` interface:
+
+```
+SimilarityIndex
+├── BruteForceIndex      (O(n) baseline)
+├── BucketedIndex        (default — LSH + exact bands)
+└── [Future] FaissIndex, QdrantIndex, PgVectorIndex
+```
+
+The scanner and `FingerprintStore` never change when swapping backends.
 
 ## BioPicHash v1 layout
 
@@ -57,33 +141,73 @@ Hash enrollment will require authenticated administrative action. Model positive
 - Flattening order: **channel-major** (`index = c×36 + y×6 + x`)
 - Encoding prefix: `biopic:v1:`
 
+See [adr/0001-biopichash-v1.md](adr/0001-biopichash-v1.md).
+
+## SQLite schema
+
+Fingerprints are stored in `fingerprints` (id, fingerprint blob, label, created_at). LSH bucket keys are stored in `fingerprint_buckets` (fingerprint_id, band_index, bucket_key) with an index on `(band_index, bucket_key)` for candidate lookup.
+
 ## Integration surfaces
 
-| Surface | Milestone 1 |
-|---------|-------------|
-| C++ library (hash/decode/distance) | Implemented |
-| C ABI | Implemented |
-| CLI (`hash`, `compare`) | Implemented |
-| REST | OpenAPI contract only; no server binary |
+| Surface | Status |
+|---------|--------|
+| C++ library | Implemented |
+| C ABI (`biopic_c`) | Implemented |
+| CLI | Implemented |
+| REST | OpenAPI contract only |
 | gRPC | Not started |
 | Python bindings | Not started |
-| SDKs | Not started |
 
 ## Security principles
 
+- All image bytes treated as hostile input
 - Checked arithmetic and allocation limits in decode path
-- Parameterized SQL (when storage is implemented)
-- API key hashing and scoped access (when REST is implemented)
+- Parameterized SQL in SQLite store
+- Bloom filter for fast exact-match rejection
 - Redacted logs: no raw image bytes or full fingerprints in normal logs
 
 ## Build layout
 
 ```
 include/biopic/     Public C++ headers
-src/                Core implementation (image, hash)
+src/                Core implementation
 bindings/c/         C ABI
 apps/biopic-cli/    Command-line tool
-tests/              Unit and golden tests
+tests/              Unit and integration tests
 benchmarks/         Performance benchmarks
-api/openapi.yaml    Future REST contract (not served in M1)
+docs/               Architecture, API, performance notes
+cmake/triplets/     vcpkg release triplets
 ```
+
+## CLI structure
+
+The CLI uses a subcommand tree:
+
+```
+biopic
+├── hash
+├── compare
+├── scan [--json]
+├── evaluate
+├── benchmark
+├── database
+│   ├── add
+│   ├── search
+│   ├── stats
+│   └── vacuum
+├── model
+│   ├── info
+│   ├── verify
+│   └── list
+├── config
+├── doctor
+└── version
+```
+
+The legacy `classify` command remains available for backward compatibility.
+
+`biopic scan --json` emits machine-readable output. Exit codes: **0** = ALLOW, **1** = REVIEW, **2** = BLOCK, **10** = error.
+
+`biopic evaluate DATASET/` accepts a `manifest.csv` (`path,label`) or `allow/`, `review/`, and `block/` subdirectories.
+
+`biopic doctor` validates the runtime: ONNX Runtime, SQLite, fingerprint pipeline, optional classifier config, and optional database.

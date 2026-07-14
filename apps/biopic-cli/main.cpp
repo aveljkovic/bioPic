@@ -1,89 +1,57 @@
-#include "biopic/distance.hpp"
-#include "biopic/fingerprint.hpp"
-#include "biopic/hasher.hpp"
-#include "biopic/image.hpp"
+#include "cli_commands.hpp"
+#include "cli_common.hpp"
 
-#include <filesystem>
+#include "biopic/cli/exit_codes.hpp"
+
 #include <iostream>
-#include <string>
-
-namespace {
-
-void print_usage() {
-    std::cerr << "Usage:\n"
-              << "  biopic hash IMAGE\n"
-              << "  biopic compare IMAGE_A IMAGE_B\n";
-}
-
-int hash_image(const std::filesystem::path& path) {
-    biopic::ImageDecoder decoder;
-    const auto decoded = decoder.decode_file(path.string());
-    if (!decoded) {
-        std::cerr << "Failed to decode image: " << path << '\n';
-        return 1;
-    }
-
-    biopic::ImageView view(decoded->width, decoded->height, decoded->rgb);
-    biopic::Hasher hasher;
-    const biopic::Fingerprint fingerprint = hasher.compute(view);
-
-    const std::string hex =
-        biopic::encode_fingerprint(fingerprint, biopic::FingerprintEncoding::Hex);
-    const std::string base64 =
-        biopic::encode_fingerprint(fingerprint, biopic::FingerprintEncoding::Base64);
-
-    std::cout << "algorithm: biopic\n";
-    std::cout << "version: " << fingerprint.version << '\n';
-    std::cout << "sha256_rgb: " << decoded->sha256_hex << '\n';
-    std::cout << "hex: " << hex << '\n';
-    std::cout << "base64: " << base64 << '\n';
-    return 0;
-}
-
-int compare_images(const std::filesystem::path& left, const std::filesystem::path& right) {
-    biopic::ImageDecoder decoder;
-    const auto decoded_left = decoder.decode_file(left.string());
-    const auto decoded_right = decoder.decode_file(right.string());
-    if (!decoded_left || !decoded_right) {
-        std::cerr << "Failed to decode one or both images\n";
-        return 1;
-    }
-
-    biopic::ImageView view_left(decoded_left->width, decoded_left->height, decoded_left->rgb);
-    biopic::ImageView view_right(decoded_right->width, decoded_right->height, decoded_right->rgb);
-    biopic::Hasher hasher;
-    const biopic::Fingerprint fingerprint_left = hasher.compute(view_left);
-    const biopic::Fingerprint fingerprint_right = hasher.compute(view_right);
-
-    const auto l1 = biopic::compare_fingerprints(fingerprint_left, fingerprint_right,
-                                                 biopic::DistanceMetric::L1);
-    const auto l2 = biopic::compare_fingerprints(fingerprint_left, fingerprint_right,
-                                                 biopic::DistanceMetric::L2);
-    const auto l2_squared = biopic::compare_fingerprints(fingerprint_left, fingerprint_right,
-                                                         biopic::DistanceMetric::L2Squared);
-
-    std::cout << "l1: " << l1.value << '\n';
-    std::cout << "l2: " << l2.value << '\n';
-    std::cout << "l2_squared: " << l2_squared.value << '\n';
-    return 0;
-}
-
-} // namespace
+#include <string_view>
 
 int main(int argc, char** argv) {
-    if (argc < 3) {
-        print_usage();
-        return 1;
+    if (argc < 2) {
+        biopic::cli::print_root_usage();
+        return biopic::cli::kExitError;
     }
 
-    const std::string command = argv[1];
-    if (command == "hash" && argc == 3) {
-        return hash_image(argv[2]);
+    const std::string_view command = argv[1];
+    if (command == "hash") {
+        return biopic::cli::run_hash(argc, argv);
     }
-    if (command == "compare" && argc == 4) {
-        return compare_images(argv[2], argv[3]);
+    if (command == "compare") {
+        return biopic::cli::run_compare(argc, argv);
+    }
+    if (command == "scan") {
+        return biopic::cli::run_scan(argc, argv);
+    }
+    if (command == "classify") {
+        return biopic::cli::run_classify(argc, argv);
+    }
+    if (command == "evaluate") {
+        return biopic::cli::run_evaluate(argc, argv);
+    }
+    if (command == "benchmark") {
+        return biopic::cli::run_benchmark(argc, argv);
+    }
+    if (command == "database") {
+        return biopic::cli::run_database(argc, argv);
+    }
+    if (command == "model") {
+        return biopic::cli::run_model(argc, argv);
+    }
+    if (command == "config") {
+        return biopic::cli::run_config(argc, argv);
+    }
+    if (command == "doctor") {
+        return biopic::cli::run_doctor(argc, argv);
+    }
+    if (command == "version") {
+        return biopic::cli::run_version(argc, argv);
+    }
+    if (command == "--help" || command == "-h" || command == "help") {
+        biopic::cli::print_root_usage();
+        return 0;
     }
 
-    print_usage();
-    return 1;
+    std::cerr << "Unknown command: " << command << '\n';
+    biopic::cli::print_root_usage();
+    return biopic::cli::kExitError;
 }

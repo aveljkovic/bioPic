@@ -1,0 +1,65 @@
+#pragma once
+
+#include <string>
+
+#include "biopic/ai/classification_result.hpp"
+#include "biopic/ai/model.hpp"
+#include "biopic/ai/preprocessing.hpp"
+#include "biopic/ai/runtime.hpp"
+#include "biopic/image.hpp"
+
+namespace biopic {
+
+enum class ClassifierKind {
+    Nudity,
+    Violence,
+    Weapons,
+    Drugs,
+    ChildSafety,
+};
+
+[[nodiscard]] std::string classifier_kind_to_string(ClassifierKind kind);
+
+// Abstract image classifier interface for future ONNX-backed models.
+class IClassifier {
+  public:
+    virtual ~IClassifier() = default;
+
+    [[nodiscard]] virtual ClassifierKind kind() const = 0;
+    [[nodiscard]] virtual const Model& model() const = 0;
+    [[nodiscard]] virtual ClassificationResult classify(const ImageView& image) = 0;
+};
+
+// Placeholder classifier that exercises preprocessing without running inference.
+class DummyClassifier final : public IClassifier {
+  public:
+    explicit DummyClassifier(ClassifierKind kind = ClassifierKind::Nudity);
+
+    [[nodiscard]] ClassifierKind kind() const override;
+    [[nodiscard]] const Model& model() const override;
+    [[nodiscard]] ClassificationResult classify(const ImageView& image) override;
+
+  private:
+    ClassifierKind kind_;
+    Model model_;
+    Preprocessor preprocessor_;
+};
+
+// ONNX Runtime-backed classifier. Requires a valid ONNX model path in Model.
+class OnnxClassifier final : public IClassifier {
+  public:
+    OnnxClassifier(ClassifierKind kind, Model model, RuntimeOptions options = {});
+
+    [[nodiscard]] ClassifierKind kind() const override;
+    [[nodiscard]] const Model& model() const override;
+    [[nodiscard]] ClassificationResult classify(const ImageView& image) override;
+    [[nodiscard]] const OnnxInferenceSession& session() const noexcept;
+
+  private:
+    ClassifierKind kind_;
+    OnnxRuntimeEnvironment environment_;
+    Preprocessor preprocessor_;
+    OnnxInferenceSession session_;
+};
+
+} // namespace biopic

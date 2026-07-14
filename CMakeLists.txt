@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   biopic
-  VERSION 0.1.0
+  VERSION 0.6.0
   DESCRIPTION "BioPic image moderation engine"
   LANGUAGES CXX)
 
@@ -17,9 +17,13 @@ option(BIOPIC_BUILD_C_ABI "Build stable C ABI shared library" ON)
 option(BIOPIC_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(ReleaseOnlyTriplet)
 include(CompilerWarnings)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
+biopic_enforce_release_only_dependencies()
+find_package(onnxruntime CONFIG REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 
 add_library(biopic_core STATIC)
 add_library(biopic::core ALIAS biopic_core)
@@ -32,11 +36,37 @@ target_sources(
           src/hash/biopic_hasher_v1.cpp
           src/hash/fingerprint_codec.cpp
           src/hash/fingerprint.cpp
-          src/hash/distance.cpp)
+          src/hash/distance.cpp
+          src/ai/classifier.cpp
+          src/ai/classifier_config.cpp
+          src/ai/classification_result.cpp
+          src/ai/model.cpp
+          src/ai/output_mapping.cpp
+          src/ai/preprocessing.cpp
+          src/ai/runtime.cpp
+          src/ai/tensor_contract.cpp
+          src/pipeline/scanner.cpp
+          src/database/fingerprint_store.cpp
+          src/database/sqlite_fingerprint_store.cpp
+          src/index/fingerprint_normalization.cpp
+          src/index/similarity_index.cpp
+          src/index/hash_match_config.cpp
+          src/index/fingerprint_bucket.cpp
+          src/index/candidate_verification.cpp
+          src/index/fingerprint_bloom_filter.cpp
+          src/index/bucketed_index.cpp
+          src/policy/moderation_policy.cpp
+          src/core/version.cpp
+          src/core/parse_double.cpp
+          src/evaluation/metrics.cpp
+          src/evaluation/dataset_manifest.cpp
+          src/database/database_maintenance.cpp
+          src/cli/exit_codes.cpp)
 
 target_include_directories(
   biopic_core
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
          $<INSTALL_INTERFACE:include>)
 
 target_compile_definitions(
@@ -45,12 +75,51 @@ target_compile_definitions(
          BIOPIC_VERSION_MINOR=${PROJECT_VERSION_MINOR}
          BIOPIC_VERSION_PATCH=${PROJECT_VERSION_PATCH})
 
-target_link_libraries(biopic_core PUBLIC ${OpenCV_LIBS})
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE BIOPIC_GIT_COMMIT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(NOT BIOPIC_GIT_COMMIT)
+  set(BIOPIC_GIT_COMMIT "unknown")
+endif()
+
+if(CMAKE_BUILD_TYPE)
+  set(BIOPIC_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+else()
+  set(BIOPIC_BUILD_TYPE "Release")
+endif()
+
+target_compile_definitions(
+  biopic_core
+  PRIVATE BIOPIC_GIT_COMMIT="${BIOPIC_GIT_COMMIT}"
+          BIOPIC_BUILD_TYPE="${BIOPIC_BUILD_TYPE}")
+
+target_link_libraries(
+  biopic_core
+  PUBLIC opencv_core opencv_imgcodecs opencv_imgproc
+  PRIVATE onnxruntime::onnxruntime unofficial::sqlite3::sqlite3)
+
+# vcpkg's static Linux/macOS onnxruntime export may omit interface include dirs.
+if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+  target_include_directories(
+    biopic_core
+    PRIVATE "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/onnxruntime")
+elseif(TARGET onnxruntime::onnxruntime)
+  get_target_property(_biopic_ort_includes onnxruntime::onnxruntime
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  if(_biopic_ort_includes)
+    target_include_directories(biopic_core PRIVATE ${_biopic_ort_includes})
+  endif()
+  unset(_biopic_ort_includes)
+endif()
 
 biopic_set_target_warnings(biopic_core)
 
 if(MSVC)
   target_compile_options(biopic_core PRIVATE /fp:precise)
+  target_compile_definitions(biopic_core PRIVATE NOMINMAX)
 else()
   target_compile_options(biopic_core PRIVATE -fno-fast-math -ffp-contract=off)
 endif()
@@ -73,8 +142,13 @@ if(BIOPIC_BUILD_C_ABI)
 endif()
 
 if(BIOPIC_BUILD_CLI)
-  add_executable(biopic-cli apps/biopic-cli/main.cpp)
+  add_executable(
+    biopic-cli
+    apps/biopic-cli/main.cpp
+    apps/biopic-cli/cli_common.cpp
+    apps/biopic-cli/cli_commands.cpp)
   target_link_libraries(biopic-cli PRIVATE biopic_core)
+  target_include_directories(biopic-cli PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   biopic_set_target_warnings(biopic-cli)
 endif()
 

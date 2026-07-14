@@ -23,6 +23,7 @@ enum class ModerationDecision : std::uint8_t {
 enum class ModerationReason : std::uint8_t {
     None,
     KnownHashMatch,
+    SimilarHashMatch,
     ModelClassification,
     InvalidInput,
     ProcessingError,
@@ -38,8 +39,12 @@ struct DecodeLimits {
 
 struct HashMatchConfig {
     DistanceMetric metric = DistanceMetric::L2;
-    double threshold = 0.0; // Must be calibrated per deployment; 0 disables near-match.
+    double threshold = 10.0;
+    bool use_normalized = false;
+    std::size_t max_results = 0;
 };
+
+constexpr HashMatchConfig kDefaultHashMatchConfig{};
 
 struct ClassificationScores {
     double safe = 0.0;

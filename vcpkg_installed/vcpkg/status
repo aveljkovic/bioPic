@@ -1,0 +1,238 @@
+Package: vcpkg-cmake-config
+Version: 2024-05-23
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 2497b9c5a520e47179d361823b5acaa16cd454eadd0c253d64cb286e93b03ffa
+Status: install ok installed
+
+Package: vcpkg-cmake
+Version: 2024-04-23
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 792ac167058527a31c12a4304bd6cedc2b1a98acc0ab1a4d3dd285bdcde639e6
+Status: install ok installed
+
+Package: benchmark
+Version: 1.9.5
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 0074b4de352f68bf797df9e0d88a4fa1c2f9b5b3e1f6b2e853659064d43d79e8
+Description: A library to benchmark code snippets, similar to unit tests.
+Status: install ok installed
+
+Package: gtest
+Version: 1.17.0
+Port-Version: 2
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: f113cebd940dc1c711d86dfd0c80c63da371e5bb26e45f9bc5f092a804d82ba7
+Description: Google Testing and Mocking Framework
+Status: install ok installed
+
+Package: wil
+Version: 1.0.260126.7
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 9ae900cf2c14170b1f601933555cc6a2c520dca6c41b35e401fe34ed15b9b855
+Description: The Windows Implementation Libraries (WIL) is a header-only C++ library created to make life easier for developers on Windows through readable type-safe C++ interfaces for common Windows coding patterns.
+Status: install ok installed
+
+Package: abseil
+Version: 20250814.1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 612fbf634427d6d2934fbd108070d12acbd0fc26d9b9fe47365145f581c13b3e
+Description: Abseil is an open-source collection of C++ library code designed to augment the C++ standard library. The Abseil library code is collected from Google's own C++ code base, has been extensively tested and used in production, and is the same code we depend on in our daily coding lives.
+    In some cases, Abseil provides pieces missing from the C++ standard; in others, Abseil provides alternatives to the standard for special needs we've found through usage in the Google code base. We denote those cases clearly within the library code we provide you.
+    Abseil is not meant to be a competitor to the standard library; we've just found that many of these utilities serve a purpose within our code base, and we now want to provide those resources to the C++ community as a whole.
+Status: install ok installed
+
+Package: utf8-range
+Version: 6.33.4
+Depends: abseil, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: fda71d802917ec9b11602a0df54ecca5bfe741c721facd66b371d24222942a27
+Description: Fast UTF-8 validation with Range algorithm (NEON+SSE4+AVX2)
+Status: install ok installed
+
+Package: safeint
+Version: 3.0.28
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 20ab3b334f4850ecdbc562fb06c4202237d0be5e41ff68336f05e258176c7550
+Description: SafeInt is a class library for C++ that manages integer overflows
+Status: install ok installed
+
+Package: re2
+Version: 2025-11-05
+Depends: abseil, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 8752c45e5e51c16602549419e2ca15d56cce2178734778d7d770817c0c163b11
+Description: RE2 is a fast, safe, thread-friendly alternative to backtracking regular expression engines like those used in PCRE, Perl, and Python. It is a C++ library.
+Status: install ok installed
+
+Package: protobuf
+Version: 6.33.4
+Port-Version: 1
+Depends: abseil, utf8-range, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: a8415e8060c13f44f2a2a6f07bc3dc6011d80eee2a2dbe3bd09284ba8fb2359c
+Description: Google's language-neutral, platform-neutral, extensible mechanism for serializing structured data.
+Status: install ok installed
+
+Package: optional-lite
+Version: 3.6.0
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: f1fef1a9e7c0175a5d24ec5a0cb02515063c786d8f2e3965f40ecdff8a8e8ed1
+Description: A C++17-like optional, a nullable object for C++98, C++11 and later in a single-file header-only library
+Status: install ok installed
+
+Package: onnx
+Version: 1.19.0
+Depends: protobuf, vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 74156845bcd283680d1051d7f4aa6fed0fed63bdad762112cd6b4ea215358c89
+Description: Open standard for machine learning interoperability
+Status: install ok installed
+
+Package: nlohmann-json
+Version: 3.12.0
+Port-Version: 2
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 1c15eb1ba724f9bc7a659f6b49adbeeae65dea2e7f929a25ca91218bf3c2f8d0
+Description: JSON for Modern C++
+Status: install ok installed
+
+Package: ms-gsl
+Version: 4.2.1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 7bfaa66238f768f0d332ddcc98205f4a4f379be964d367769d6e64d698280590
+Description: Microsoft implementation of the Guidelines Support Library
+Status: install ok installed
+
+Package: flatbuffers
+Version: 25.12.19
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 9f87c39a439aaef3417b4d819569ad9202dad52d5b32564c350f94277250b834
+Description: FlatBuffers is a cross platform serialization library architected for maximum memory efficiency. It allows you to directly access serialized data without parsing/unpacking it first, while still having great forwards/backwards compatibility.
+Status: install ok installed
+
+Package: eigen3
+Version: 5.0.1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 4b5fada543945c5e84bb50b35ec1ab59b24901db3b70699a6126f344fbdfbb10
+Description: C++ template library for linear algebra: matrices, vectors, numerical solvers, and related algorithms.
+Status: install ok installed
+
+Package: dlpack
+Version: 1.3
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 3ab9698c9f3ea374e63f85f04c1baa9ca57b7e15681a71bd8941d34501953139
+Description: DLPack is an open in-memory tensor structure for sharing tensors among frameworks
+Status: install ok installed
+
+Package: date
+Version: 3.0.4
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: a2617da0deace348bdde497892b36d8faed094b44150a07331fa11e143ea056a
+Description: A date and time library based on the C++17 <chrono> header
+Status: install ok installed
+
+Package: cxxopts
+Version: 3.3.1
+Port-Version: 1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: bdc415d6ac310838f5a375f1714f310dc4d5962b263eed0b016050ace0ba425c
+Description: A lightweight C++ option parser library, supporting the standard GNU style syntax for options
+Status: install ok installed
+
+Package: cpuinfo
+Version: 2025-09-06
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 0e3b122e7fa80d172ee14cefba2099d7d0ebc214a9ecece2a7a95a21ffe970b7
+Description: CPU INFOrmation library (x86/x86-64/ARM/ARM64, Linux/Windows/Android/macOS/iOS)
+Status: install ok installed
+
+Package: vcpkg-boost
+Version: 2025-03-29
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: fa45582000016288b4b992c89d863a6548c6038262f9a357eab89a56efc05c36
+Status: install ok installed
+
+Package: boost-uninstall
+Version: 1.90.0
+Port-Version: 1
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 69448443d51b4dcf78e4a92969a50a743b5169fd19659f868b875ab3b1ce531e
+Description: Internal vcpkg port used to uninstall Boost
+Status: install ok installed
+
+Package: boost-cmake
+Version: 1.90.0
+Port-Version: 1
+Depends: boost-uninstall, vcpkg-boost
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 1899e8602e3c5fc9e652d92325199fb5eb702be14afdc01e18489871d1843690
+Description: Boost cmake module
+Status: install ok installed
+
+Package: boost-headers
+Version: 1.90.0
+Port-Version: 1
+Depends: boost-cmake
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 5433da1748fb9630fbf314013e6dba0f69664b32747022062faec90621c26959
+Description: Boost headers module
+Status: install ok installed
+
+Package: boost-config
+Version: 1.90.0
+Port-Version: 1
+Depends: boost-cmake, boost-headers
+Architecture: x64-windows
+Multi-Arch: same
+Abi: d55321d2ae36d124b108c5cf3c6a82729c93c09dd804d4bf4136fa3fca27f9fb
+Description: Boost config module
+Status: install ok installed
+
+Package: boost-mp11
+Version: 1.90.0
+Port-Version: 1
+Depends: boost-cmake, boost-config, boost-headers
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 45500549cb7dd90dba57fe8b61e78d4ef9352f23397af5cb002b8196a8a3c86b
+Description: Boost mp11 module
+Status: install ok installed
+
