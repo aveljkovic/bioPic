@@ -37,8 +37,8 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
   ERROR_STRIP_TRAILING_WHITESPACE)
 
-if(NOT scan_result EQUAL 0)
-  message(FATAL_ERROR "scan failed (${scan_result})\nstdout: ${scan_output}\nstderr: ${scan_error}")
+if(NOT scan_result EQUAL 2)
+  message(FATAL_ERROR "scan expected BLOCK exit code 2, got (${scan_result})\nstdout: ${scan_output}\nstderr: ${scan_error}")
 endif()
 
 if(NOT scan_output MATCHES "Match: exact match")

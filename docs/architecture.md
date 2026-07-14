@@ -179,23 +179,35 @@ docs/               Architecture, API, performance notes
 cmake/triplets/     vcpkg release triplets
 ```
 
-## Future: CLI structure
+## CLI structure
 
-The CLI will migrate from flat commands to a subcommand tree:
+The CLI uses a subcommand tree:
 
 ```
 biopic
 ├── hash
 ├── compare
-├── classify
-├── scan
+├── scan [--json]
+├── evaluate
+├── benchmark
 ├── database
-│      ├── add
-│      ├── search
-│      ├── stats
-│      ├── optimize
-│      └── verify
-└── benchmark
+│   ├── add
+│   ├── search
+│   ├── stats
+│   └── vacuum
+├── model
+│   ├── info
+│   ├── verify
+│   └── list
+├── config
+├── doctor
+└── version
 ```
 
-Current flat commands (`biopic database add`, etc.) remain supported during the transition.
+The legacy `classify` command remains available for backward compatibility.
+
+`biopic scan --json` emits machine-readable output. Exit codes: **0** = ALLOW, **1** = REVIEW, **2** = BLOCK, **10** = error.
+
+`biopic evaluate DATASET/` accepts a `manifest.csv` (`path,label`) or `allow/`, `review/`, and `block/` subdirectories.
+
+`biopic doctor` validates the runtime: ONNX Runtime, SQLite, fingerprint pipeline, optional classifier config, and optional database.

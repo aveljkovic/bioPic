@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.24)
 
 project(
   biopic
-  VERSION 0.1.0
+  VERSION 0.6.0
   DESCRIPTION "BioPic image moderation engine"
   LANGUAGES CXX)
 
@@ -55,7 +55,12 @@ target_sources(
           src/index/candidate_verification.cpp
           src/index/fingerprint_bloom_filter.cpp
           src/index/bucketed_index.cpp
-          src/policy/moderation_policy.cpp)
+          src/policy/moderation_policy.cpp
+          src/core/version.cpp
+          src/evaluation/metrics.cpp
+          src/evaluation/dataset_manifest.cpp
+          src/database/database_maintenance.cpp
+          src/cli/exit_codes.cpp)
 
 target_include_directories(
   biopic_core
@@ -68,6 +73,27 @@ target_compile_definitions(
   PUBLIC BIOPIC_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
          BIOPIC_VERSION_MINOR=${PROJECT_VERSION_MINOR}
          BIOPIC_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+
+execute_process(
+  COMMAND git rev-parse --short HEAD
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  OUTPUT_VARIABLE BIOPIC_GIT_COMMIT
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET)
+if(NOT BIOPIC_GIT_COMMIT)
+  set(BIOPIC_GIT_COMMIT "unknown")
+endif()
+
+if(CMAKE_BUILD_TYPE)
+  set(BIOPIC_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+else()
+  set(BIOPIC_BUILD_TYPE "Release")
+endif()
+
+target_compile_definitions(
+  biopic_core
+  PRIVATE BIOPIC_GIT_COMMIT="${BIOPIC_GIT_COMMIT}"
+          BIOPIC_BUILD_TYPE="${BIOPIC_BUILD_TYPE}")
 
 target_link_libraries(
   biopic_core
@@ -101,7 +127,11 @@ if(BIOPIC_BUILD_C_ABI)
 endif()
 
 if(BIOPIC_BUILD_CLI)
-  add_executable(biopic-cli apps/biopic-cli/main.cpp)
+  add_executable(
+    biopic-cli
+    apps/biopic-cli/main.cpp
+    apps/biopic-cli/cli_common.cpp
+    apps/biopic-cli/cli_commands.cpp)
   target_link_libraries(biopic-cli PRIVATE biopic_core)
   biopic_set_target_warnings(biopic-cli)
 endif()

@@ -324,6 +324,65 @@ const char* match = biopic::match_status_label(result.match_status);
 
 ---
 
+## CLI
+
+The `biopic-cli` binary exposes the moderation engine for scripting and integration.
+
+### Command tree
+
+```
+biopic hash | compare | scan | evaluate | benchmark
+biopic database add|search|stats|vacuum
+biopic model info|verify|list
+biopic config | doctor | version
+```
+
+### Scan exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | ALLOW |
+| 1 | REVIEW |
+| 2 | BLOCK |
+| 10 | Error |
+
+Use `biopic scan IMAGE --json` for automation-friendly output.
+
+### Evaluation
+
+```cpp
+#include "biopic/evaluation/dataset_manifest.hpp"
+#include "biopic/evaluation/metrics.hpp"
+
+const auto samples = biopic::evaluation::load_manifest("dataset/");
+biopic::evaluation::ConfusionMatrix matrix{};
+// ... run scan + evaluate_policy for each sample ...
+const auto report = biopic::evaluation::compute_report(matrix, skipped);
+```
+
+Dataset layout: `manifest.csv` with `relative_path,allow|review|block` rows, or labeled subdirectories.
+
+### Database maintenance
+
+```cpp
+#include "biopic/database/database_maintenance.hpp"
+
+const auto stats = biopic::inspect_database("fingerprints.db");
+const bool ok = biopic::vacuum_database("fingerprints.db");
+```
+
+### Build metadata
+
+```cpp
+#include "biopic/version.hpp"
+
+const biopic::BuildInfo info = biopic::build_info();
+const std::string ort = biopic::onnx_runtime_version();
+const std::string sqlite = biopic::sqlite_version_string();
+```
+
+---
+
 ## Error handling
 
 BioPic uses `std::optional` for recoverable failures (decode errors, missing files) and boolean returns for store operations. The C ABI exposes error codes — see `biopic.h`.

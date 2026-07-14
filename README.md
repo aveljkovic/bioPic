@@ -15,9 +15,10 @@ Clone it today and you can hash images, classify them, scan against a local fing
 | **Scan pipeline** — decode → fingerprint → database → classify → decision | ✅ |
 | **SQLite persistence** — `PersistentFingerprintStore` with bucket index | ✅ |
 | **Similarity search** — `SimilarityIndex` with LSH candidate reduction | ✅ |
-| **CLI** — hash, compare, classify, scan, database commands | ✅ |
+| **CLI** — subcommand tree, JSON output, stable exit codes | ✅ |
+| **Evaluation** — precision/recall/F1 on labeled datasets | ✅ |
 | **C ABI** — stable `biopic_c` shared library | ✅ |
-| **Tests & benchmarks** — 27 unit/integration tests, Google Benchmark suites | ✅ |
+| **Tests & benchmarks** — 31 unit/integration tests, Google Benchmark suites | ✅ |
 
 ## Architecture
 
@@ -102,18 +103,34 @@ biopic-cli hash photo.jpg
 # Compare two images
 biopic-cli compare a.png b.png
 
-# Classify with an ONNX model config
-biopic-cli classify photo.jpg --config models/nudity.json
-
 # Full moderation scan (database + optional classifier)
 biopic-cli scan photo.jpg --database fingerprints.db --config models/nudity.json
 
-# Manage a fingerprint database
+# Machine-readable output for automation
+biopic-cli scan photo.jpg --json
+# Exit codes: 0=ALLOW, 1=REVIEW, 2=BLOCK, 10=error
+
+# Evaluate a labeled dataset (manifest.csv or allow/review/block/ dirs)
+biopic-cli evaluate dataset/ --database fingerprints.db --config models/nudity.json
+
+# Database maintenance
 biopic-cli database add photo.jpg --label blocked --database fingerprints.db
 biopic-cli database search query.jpg --database fingerprints.db --threshold 50
+biopic-cli database stats --database fingerprints.db
+biopic-cli database vacuum --database fingerprints.db
+
+# Model and runtime checks
+biopic-cli model info --config models/nudity.json
+biopic-cli model verify --config models/nudity.json
+biopic-cli doctor --database fingerprints.db --config models/nudity.json
+biopic-cli version
+biopic-cli config
+
+# Legacy classify command (still supported)
+biopic-cli classify photo.jpg --config models/nudity.json
 ```
 
-Set `BIOPIC_CLASSIFIER_CONFIG` to avoid passing `--config` on every command.
+Set `BIOPIC_CLASSIFIER_CONFIG` and `BIOPIC_DATABASE` to avoid passing `--config` / `--database` on every command.
 
 ## Performance
 
@@ -175,12 +192,22 @@ See [bindings/c/include/biopic.h](bindings/c/include/biopic.h) for ownership rul
 | 8B | LSH neighbor buckets, recall/latency targets | ✅ Done |
 | **Polish** | README, docs, CI, GitHub templates | ✅ Done |
 | **9** | Policy engine (`ModerationPolicy`) | ✅ Done |
-| 10 | CLI subcommand tree | Planned |
+| **10** | CLI subcommand tree, evaluation, doctor, version | ✅ Done |
 | 11 | REST API (`POST /scan`) | Planned |
 | 12 | Web dashboard (demo UI) | Planned |
 | 13 | Packaging (vcpkg, Homebrew, Docker) | Planned |
 | 14 | Vector backends (FAISS, Qdrant, pgvector) | Planned |
-| — | Evaluation framework (precision/recall, ROC, labeled datasets) | Planned |
+
+### Release tags
+
+| Tag | Milestone |
+|-----|-----------|
+| v0.1.0 | Hashing |
+| v0.2.0 | Classification |
+| v0.3.0 | Database |
+| v0.4.0 | Similarity search |
+| v0.5.0 | Policy engine |
+| v0.6.0 | CLI & evaluation |
 
 ## Documentation
 

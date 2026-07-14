@@ -37,6 +37,10 @@ biopic_add_test(test_classifier unit/test_classifier.cpp)
 biopic_add_test(test_classifier_config unit/test_classifier_config.cpp)
 biopic_add_test(test_scanner unit/test_scanner.cpp)
 biopic_add_test(test_moderation_policy unit/test_moderation_policy.cpp)
+biopic_add_test(test_evaluation unit/test_evaluation.cpp)
+target_compile_definitions(
+  test_evaluation
+  PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
 target_compile_definitions(
   test_scanner
   PRIVATE BIOPIC_TEST_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures")
@@ -54,6 +58,16 @@ target_compile_definitions(
 if(BIOPIC_BUILD_CLI)
   set(CLI_CLASSIFY_FIXTURE_PNG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/cli_classify.png)
   set(CLI_CLASSIFIER_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/classifier.conf)
+
+  add_test(NAME test_cli_version COMMAND $<TARGET_FILE:biopic-cli> version)
+  set_tests_properties(test_cli_version PROPERTIES PASS_REGULAR_EXPRESSION "BioPic 0\\.6\\.0")
+
+  add_test(
+    NAME test_cli_evaluate
+    COMMAND $<TARGET_FILE:biopic-cli> evaluate ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/eval)
+  set_tests_properties(
+    test_cli_evaluate
+    PROPERTIES PASS_REGULAR_EXPRESSION "BioPic Evaluation[\r\n]+[\r\n]+Dataset:.*[\r\n]+Samples: 1 total")
 
   add_test(NAME test_cli_classify COMMAND $<TARGET_FILE:biopic-cli> classify
                                           ${CLI_CLASSIFY_FIXTURE_PNG} --config
