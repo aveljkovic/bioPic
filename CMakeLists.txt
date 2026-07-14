@@ -100,6 +100,20 @@ target_link_libraries(
   PUBLIC opencv_core opencv_imgcodecs opencv_imgproc
   PRIVATE onnxruntime::onnxruntime unofficial::sqlite3::sqlite3)
 
+# vcpkg's static Linux/macOS onnxruntime export may omit interface include dirs.
+if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+  target_include_directories(
+    biopic_core
+    PRIVATE "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/onnxruntime")
+elseif(TARGET onnxruntime::onnxruntime)
+  get_target_property(_biopic_ort_includes onnxruntime::onnxruntime
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  if(_biopic_ort_includes)
+    target_include_directories(biopic_core PRIVATE ${_biopic_ort_includes})
+  endif()
+  unset(_biopic_ort_includes)
+endif()
+
 biopic_set_target_warnings(biopic_core)
 
 if(MSVC)
